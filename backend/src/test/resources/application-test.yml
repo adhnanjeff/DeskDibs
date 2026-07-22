@@ -1,0 +1,19 @@
+# Test profile. Layered on top of application.yml, so ddl-auto: validate and the
+# Flyway settings under test are the same ones production uses.
+#
+# The datasource below is a placeholder only: Testcontainers supplies the real URL,
+# username, and password through @ServiceConnection, which takes precedence over
+# these properties. It exists so the suite does not require DB_PASSWORD in the
+# environment, and so a test can never accidentally reach the dev database.
+spring:
+  datasource:
+    url: jdbc:postgresql://testcontainers-supplies-this/unused
+    username: unused
+    password: unused
+    hikari:
+      # 150 concurrent claim attempts in the headline test, against a pool of 32. A pool
+      # smaller than the thread count is the production shape (150 requests, 20 connections)
+      # and still races hard at the database. Sizing the pool at 150 would be worse, not
+      # better: Postgres defaults to max_connections = 100, so the test would start failing
+      # on "too many clients" instead of on the constraint it is meant to prove.
+      maximum-pool-size: 32

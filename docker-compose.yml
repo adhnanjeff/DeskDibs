@@ -1,0 +1,48 @@
+# Alternative to the local Homebrew Postgres — use this for a disposable,
+# reproducible database (CI, teammates, or a clean reset).
+#
+#   docker compose up -d
+#
+# Deliberately on port 5433 so it can NEVER collide with the Homebrew
+# Postgres already listening on 5432. Pick one or the other in .env.
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    container_name: deskdibs-postgres
+    restart: unless-stopped
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_DB: deskdibs
+      POSTGRES_USER: deskdibs
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+    volumes:
+      - deskdibs_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U deskdibs -d deskdibs"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Browser-based pgAdmin, in case you'd rather not use the desktop app.
+  # http://localhost:5050
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: deskdibs-pgadmin
+    restart: unless-stopped
+    ports:
+      - "5050:80"
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@deskdibs.local
+      PGADMIN_DEFAULT_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - deskdibs_pgadmin:/var/lib/pgadmin
+
+volumes:
+  deskdibs_pgdata:
+  deskdibs_pgadmin:
