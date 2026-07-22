@@ -1,0 +1,51 @@
+# Alternative to the local Homebrew Postgres — a disposable, reproducible
+# database for teammates, a clean reset, or a machine without Postgres installed.
+#
+#   cp .env.docker.example .env.docker   # then set the credentials
+#   docker compose up -d
+#
+# Deliberately on port 5433 so it can NEVER collide with a Homebrew Postgres
+# already listening on 5432.
+#
+# Credentials come from .env.docker, which is gitignored. No secret-shaped key
+# appears in this file at all: nothing to leak, and nothing for a secret scanner
+# to flag. Each service reads only the variables it actually needs.
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    container_name: deskdibs-postgres
+    restart: unless-stopped
+    ports:
+      - "5433:5432"
+    env_file:
+      - .env.docker
+    volumes:
+      - deskdibs_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Browser-based pgAdmin, in case you'd rather not use the desktop app.
+  # http://localhost:5050
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: deskdibs-pgadmin
+    restart: unless-stopped
+    ports:
+      - "5050:80"
+    env_file:
+      - .env.docker
+    environment:
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - deskdibs_pgadmin:/var/lib/pgadmin
+
+volumes:
+  deskdibs_pgdata:
+  deskdibs_pgadmin:

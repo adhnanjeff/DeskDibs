@@ -1,0 +1,54 @@
+spring:
+  application:
+    name: deskdibs
+
+  # Every value comes from the environment with a safe localhost default.
+  # DB_PASSWORD has no default on purpose: the app must fail loudly rather than
+  # start against an unexpected database. Real values live in the gitignored .env.
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:deskdibs}
+    username: ${DB_USER:deskdibs}
+    password: ${DB_PASSWORD}
+    hikari:
+      pool-name: deskdibs-pool
+      maximum-pool-size: ${DB_POOL_SIZE:20}
+
+  # Flyway owns the schema. Hibernate only checks that its mappings match what
+  # Flyway built — never `update`, never `create`.
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+
+  cache:
+    type: caffeine
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never
+
+# Office rules are configuration, never hardcoded. Dates and cut-offs resolve
+# server-side in this timezone; the client clock is never trusted.
+deskdibs:
+  office:
+    timezone: ${OFFICE_TIMEZONE:Asia/Kolkata}
+    booking-horizon-days: ${BOOKING_HORIZON_DAYS:14}
+    team-block-release-time: ${TEAM_BLOCK_RELEASE_TIME:10:00}
+    no-show-release-time: ${NO_SHOW_RELEASE_TIME:11:00}
+
+logging:
+  level:
+    com.deskdibs: INFO
