@@ -1,0 +1,62 @@
+name: Backend CI
+
+# Backend only for now. A frontend workflow lands with the React app; at that
+# point add `paths:` filters to both — not before. A path filter on a required
+# status check silently blocks any PR that doesn't touch the filtered directory,
+# because the check never reports at all.
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+# A new push to the same branch makes the in-flight run obsolete.
+concurrency:
+  group: backend-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build and test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      # Java 21 LTS — must match <java.version> in pom.xml. The runner's default
+      # JDK is not guaranteed to be 21, so pin it explicitly.
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      # Split from `verify` so a plain compile error fails in seconds with an
+      # obvious message, instead of being buried in test output.
+      - name: Compile
+        run: ./mvnw -B --no-transfer-progress clean compile
+
+      # Integration tests run against real PostgreSQL 18 via Testcontainers.
+      # ubuntu-latest ships a running Docker daemon, so no service container or
+      # extra setup is needed here.
+      - name: Verify
+        run: ./mvnw -B --no-transfer-progress verify
+
+      - name: Upload test reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-reports
+          path: backend/target/surefire-reports/
+          retention-days: 7
+          if-no-files-found: ignore
