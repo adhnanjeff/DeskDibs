@@ -35,14 +35,14 @@ class SchemaMigrationTest extends AbstractPostgresIntegrationTest {
         MigrationInfo[] applied = flyway.info().applied();
 
         assertThat(applied)
-                .as("both V1 and V2 should have run")
-                .hasSize(2);
+                .as("V1, V2 and V3 should have run")
+                .hasSize(3);
         assertThat(applied)
                 .extracting(info -> info.getVersion().toString())
-                .containsExactly("1", "2");
+                .containsExactly("1", "2", "3");
         assertThat(Arrays.stream(applied).map(MigrationInfo::getState))
                 .allMatch(MigrationState.SUCCESS::equals);
-        assertThat(flyway.info().current().getVersion().toString()).isEqualTo("2");
+        assertThat(flyway.info().current().getVersion().toString()).isEqualTo("3");
     }
 
     @Test

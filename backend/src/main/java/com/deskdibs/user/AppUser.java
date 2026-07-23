@@ -34,6 +34,16 @@ public class AppUser extends BaseEntity {
     @Column(name = "avatar_url", length = 500)
     private String avatarUrl;
 
+    /**
+     * BCrypt hash, local development provider only.
+     *
+     * <p>Null for every Entra-authenticated user — their credential lives in the tenant and never
+     * reaches this database. Null therefore means "this account cannot log in with a password",
+     * which is the correct answer, not a missing value.
+     */
+    @Column(name = "password_hash", length = 100)
+    private String passwordHash;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "role", nullable = false, length = 20)
     private UserRole role = UserRole.EMPLOYEE;

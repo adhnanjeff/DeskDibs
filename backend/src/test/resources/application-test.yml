@@ -17,3 +17,25 @@ spring:
       # better: Postgres defaults to max_connections = 100, so the test would start failing
       # on "too many clients" instead of on the constraint it is meant to prove.
       maximum-pool-size: 32
+      # The suite runs several Spring contexts — the booking tests, the local auth web
+      # tests, the seeder, the Entra wiring — and the test framework caches every one of
+      # them for the whole run. Left at its default, minimum-idle equals maximum-pool-size,
+      # so each cached context would sit on 32 connections and four of them would exhaust
+      # PostgreSQL's default max_connections of 100 before any of them did anything. Two
+      # idle connections per context is plenty; the pool still grows to 32 on demand, which
+      # is all the concurrency test needs.
+      minimum-idle: 2
+
+deskdibs:
+  auth:
+    local:
+      # Startup seeding is off across the suite. The Testcontainers database is shared by
+      # every test class and several of them clear `app_user` between methods, so rows
+      # created once at context refresh would be present or absent depending on class
+      # ordering — an invisible dependency between unrelated tests. DevUserSeederTest calls
+      # the component directly instead, which proves the same behaviour deterministically.
+      seed-dev-users: false
+      # jwt-secret stays unset: each test context generates its own ephemeral signing key,
+      # so no test credential exists anywhere in this repository to be copied into a real
+      # deployment.
+

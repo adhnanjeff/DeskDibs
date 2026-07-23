@@ -40,9 +40,34 @@ management:
     health:
       show-details: never
 
-# Office rules are configuration, never hardcoded. Dates and cut-offs resolve
-# server-side in this timezone; the client clock is never trusted.
 deskdibs:
+  # Identity. `provider` binds to an enum, so AUTH_PROVIDER=entar stops the
+  # application at startup instead of leaving it running with no provider — or,
+  # far worse, silently accepting development passwords in production.
+  #
+  # DESKDIBS_JWT_SECRET and DEV_SEED_PASSWORD deliberately have no default here.
+  # A signing key committed to a repository is a signing key anyone can forge
+  # tokens with; a default dev password is an account anyone can walk into. Blank
+  # means "generate an ephemeral key" and "seed nothing" respectively — both of
+  # which say so in the log.
+  auth:
+    provider: ${AUTH_PROVIDER:local}
+    local:
+      jwt-secret: ${DESKDIBS_JWT_SECRET:}
+      token-ttl: ${DESKDIBS_JWT_TTL:PT8H}
+      issuer: ${DESKDIBS_JWT_ISSUER:deskdibs-local}
+      audience: ${DESKDIBS_JWT_AUDIENCE:deskdibs-api}
+      seed-dev-users: ${DEV_SEED_USERS:true}
+      seed-password: ${DEV_SEED_PASSWORD:}
+    entra:
+      tenant-id: ${ENTRA_TENANT_ID:}
+      client-id: ${ENTRA_CLIENT_ID:}
+      # Overrides for a sovereign cloud only; derived from the tenant when blank.
+      issuer: ${ENTRA_ISSUER:}
+      jwk-set-uri: ${ENTRA_JWK_SET_URI:}
+
+  # Office rules are configuration, never hardcoded. Dates and cut-offs resolve
+  # server-side in this timezone; the client clock is never trusted.
   office:
     timezone: ${OFFICE_TIMEZONE:Asia/Kolkata}
     booking-horizon-days: ${BOOKING_HORIZON_DAYS:14}
