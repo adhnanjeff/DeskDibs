@@ -42,6 +42,29 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
+
+        <!--
+          Authentication and authorization.
+
+          The resource server starter is what validates bearer tokens under BOTH identity
+          providers: against Microsoft Entra's JWKS endpoint in production, and against a
+          locally held HMAC key in development. It also brings spring-security-oauth2-jose
+          (Nimbus), which issues the local development tokens — so there is exactly one JWT
+          library in the build, as PLAN.md §11 requires. jjwt stays deliberately absent.
+
+          spring-boot-starter-oauth2-client is NOT here: DeskDibs is a bearer-token resource
+          server. The browser runs the OIDC code flow (MSAL) and sends the resulting access
+          token; the backend never performs a server-side authorization-code exchange, so a
+          client registration would be configuration with nothing behind it.
+        -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-cache</artifactId>
