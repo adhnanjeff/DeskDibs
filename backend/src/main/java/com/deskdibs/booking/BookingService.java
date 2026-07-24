@@ -11,6 +11,7 @@ import com.deskdibs.user.AppUser;
 import com.deskdibs.user.AppUserRepository;
 import com.deskdibs.user.UserRole;
 import org.hibernate.exception.ConstraintViolationException;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -56,6 +57,7 @@ public class BookingService {
     private final OfficeClock officeClock;
     private final OfficeProperties office;
     private final TransactionTemplate transactionTemplate;
+    private final ApplicationEventPublisher events;
 
     public BookingService(BookingRepository bookings,
                           SeatRepository seats,
@@ -64,7 +66,8 @@ public class BookingService {
                           TeamMemberRepository teamMembers,
                           OfficeClock officeClock,
                           OfficeProperties office,
-                          TransactionTemplate transactionTemplate) {
+                          TransactionTemplate transactionTemplate,
+                          ApplicationEventPublisher events) {
         this.bookings = bookings;
         this.seats = seats;
         this.users = users;
@@ -73,6 +76,7 @@ public class BookingService {
         this.officeClock = officeClock;
         this.office = office;
         this.transactionTemplate = transactionTemplate;
+        this.events = events;
     }
 
     // ─── Claim ───────────────────────────────────────────────────────────────────
@@ -109,8 +113,10 @@ public class BookingService {
         requireNotHeldForAnotherTeam(seat, request.date(), user);
 
         // The insert is the authority. If it loses, it loses at the database.
-        return BookingView.of(bookings.saveAndFlush(
+        BookingView claimed = BookingView.of(bookings.saveAndFlush(
                 new Booking(seat, user, request.date(), request.idempotencyKey())));
+        publishSeatChanged(claimed.seatId(), claimed.bookingDate());
+        return claimed;
     }
 
     // ─── Move ────────────────────────────────────────────────────────────────────
@@ -150,12 +156,16 @@ public class BookingService {
             if (current.getSeat().getId() == request.seatId()) {
                 return BookingView.of(current);
             }
+            long previousSeatId = current.getSeat().getId();
             current.setStatus(BookingStatus.CANCELLED);
             bookings.saveAndFlush(current);
+            publishSeatChanged(previousSeatId, request.date());
         }
 
-        return BookingView.of(bookings.saveAndFlush(
+        BookingView moved = BookingView.of(bookings.saveAndFlush(
                 new Booking(seat, user, request.date(), request.idempotencyKey())));
+        publishSeatChanged(moved.seatId(), moved.bookingDate());
+        return moved;
     }
 
     // ─── Cancel ──────────────────────────────────────────────────────────────────
@@ -181,7 +191,9 @@ public class BookingService {
         }
 
         booking.setStatus(BookingStatus.CANCELLED);
-        return BookingView.of(bookings.saveAndFlush(booking));
+        BookingView cancelled = BookingView.of(bookings.saveAndFlush(booking));
+        publishSeatChanged(cancelled.seatId(), cancelled.bookingDate());
+        return cancelled;
     }
 
     // ─── Check-in ────────────────────────────────────────────────────────────────
@@ -215,7 +227,20 @@ public class BookingService {
         }
 
         booking.setCheckedInAt(officeClock.timestamp());
-        return BookingView.of(bookings.saveAndFlush(booking));
+        BookingView checkedIn = BookingView.of(bookings.saveAndFlush(booking));
+        publishSeatChanged(checkedIn.seatId(), checkedIn.bookingDate());
+        return checkedIn;
+    }
+
+    // ─── Reading ─────────────────────────────────────────────────────────────────
+
+    /** The caller's own bookings with a date in {@code [from, to]}, earliest first. */
+    @Transactional(readOnly = true)
+    public List<BookingView> findMine(long userId, LocalDate from, LocalDate to) {
+        return bookings.findByUserIdAndBookingDateBetweenOrderByBookingDateAscFetchSeatAndUser(userId, from, to)
+                .stream()
+                .map(BookingView::of)
+                .toList();
     }
 
     // ─── The rules ───────────────────────────────────────────────────────────────
@@ -453,6 +478,19 @@ public class BookingService {
             }
             return OTHER;
         }
+    }
+
+    // ─── Real-time ───────────────────────────────────────────────────────────────
+
+    /**
+     * Signals that {@code seatId}'s availability on {@code bookingDate} changed. Picked up by
+     * {@code com.deskdibs.realtime.SeatMapBroadcastListener}, whose
+     * {@code @TransactionalEventListener(phase = AFTER_COMMIT)} only fires once the transaction
+     * this call is nested inside actually commits — never for a claim that goes on to lose the
+     * race, because that path throws before reaching a call to this method at all.
+     */
+    private void publishSeatChanged(long seatId, LocalDate bookingDate) {
+        events.publishEvent(new SeatAvailabilityChangedEvent(seatId, bookingDate));
     }
 
     // ─── Lookups ─────────────────────────────────────────────────────────────────

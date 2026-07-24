@@ -23,6 +23,12 @@
         <maven.compiler.release>21</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <lombok.version>1.18.38</lombok.version>
+        <!--
+          2.8.x is the last springdoc major built against Spring Boot 3.5.x (its own parent POM
+          is spring-boot-starter-parent 3.5.13). The 3.x line targets Spring Boot 4's modularized
+          starters and is not compatible with this project's Boot 3.5.3.
+        -->
+        <springdoc.version>2.8.17</springdoc.version>
     </properties>
 
     <dependencies>
@@ -72,6 +78,25 @@
         <dependency>
             <groupId>com.github.ben-manes.caffeine</groupId>
             <artifactId>caffeine</artifactId>
+        </dependency>
+
+        <!--
+          Phase 4: live seat-map updates. Brings spring-websocket + spring-messaging (STOMP).
+          The STOMP CONNECT frame is authenticated with the same JwtDecoder/AuthProvider as the
+          REST API (see realtime/StompAuthChannelInterceptor) rather than the raw HTTP handshake,
+          because a browser's native WebSocket API cannot attach a bearer header to the upgrade
+          request itself.
+        -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-websocket</artifactId>
+        </dependency>
+
+        <!-- Phase 4: publishes the OpenAPI contract at /v3/api-docs and /swagger-ui.html. -->
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+            <version>${springdoc.version}</version>
         </dependency>
 
         <!-- Schema is owned by Flyway; JPA only validates against it. -->

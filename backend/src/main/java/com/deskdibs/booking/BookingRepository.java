@@ -69,4 +69,45 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
            where b.idempotencyKey = :idempotencyKey
            """)
     Optional<Booking> findByIdempotencyKeyWithSeatAndUser(@Param("idempotencyKey") String idempotencyKey);
+
+    /**
+     * The day snapshot with its occupant eagerly joined. Used by the seat map, which needs every
+     * occupant's display name for up to 110 seats in one round trip rather than one lazy load per
+     * booking. {@code seat} is deliberately not joined here: the caller already knows which seat
+     * each booking belongs to (it groups these by {@code b.getSeat().getId()}, which reads the
+     * foreign key off the entity without initialising it), so joining it again would be wasted work.
+     */
+    @Query("""
+           select b from Booking b
+           join fetch b.user
+           where b.bookingDate = :bookingDate and b.status = :status
+           """)
+    List<Booking> findByBookingDateAndStatusFetchUser(@Param("bookingDate") LocalDate bookingDate,
+                                                      @Param("status") BookingStatus status);
+
+    /** The caller's own bookings in a date range, with the seat eagerly joined for its label. */
+    @Query("""
+           select b from Booking b
+           join fetch b.seat
+           join fetch b.user
+           where b.user.id = :userId and b.bookingDate between :from and :to
+           order by b.bookingDate asc
+           """)
+    List<Booking> findByUserIdAndBookingDateBetweenOrderByBookingDateAscFetchSeatAndUser(
+            @Param("userId") Long userId, @Param("from") LocalDate from, @Param("to") LocalDate to);
+
+    /**
+     * Every ACTIVE booking for one seat across a date range, with the occupant eagerly joined —
+     * exactly what a team-reservation request needs to report who is already sitting there on which
+     * day, without force-cancelling anybody.
+     */
+    @Query("""
+           select b from Booking b
+           join fetch b.user
+           where b.seat.id = :seatId and b.bookingDate between :from and :to and b.status = 'ACTIVE'
+           order by b.bookingDate asc
+           """)
+    List<Booking> findActiveBookingsForSeatInRangeFetchUser(@Param("seatId") Long seatId,
+                                                            @Param("from") LocalDate from,
+                                                            @Param("to") LocalDate to);
 }
