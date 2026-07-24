@@ -1,0 +1,874 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "DeskDibs API",
+    "description": "Office hot-desk seat booking. The floor map at GET /api/seatmap is the endpoint the rest of the product hangs off; every mutation broadcasts a SeatStatusChanged message over STOMP to /topic/seatmap/{date} once its transaction commits.",
+    "contact": {
+      "name": "DeskDibs"
+    },
+    "version": "v1"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8080",
+      "description": "Generated server url"
+    }
+  ],
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "tags": [
+    {
+      "name": "Seat map",
+      "description": "The top-down floor map the rest of the product hangs off."
+    },
+    {
+      "name": "Reservations",
+      "description": "Manager/admin team seat holds."
+    },
+    {
+      "name": "Bookings",
+      "description": "Claim, move, cancel and check in to a seat."
+    }
+  ],
+  "paths": {
+    "/api/reservations": {
+      "post": {
+        "tags": [
+          "Reservations"
+        ],
+        "summary": "Hold seats for a team over a date range",
+        "description": "Never force-cancels a booking. Returns a partial-success report naming which seats were held and which were left alone because somebody already holds them, and on which day.",
+        "operationId": "create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateReservationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "The partial-success report.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReservationReport"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is neither a manager nor an admin.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReservationReport"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The team, or one of the seat ids, does not exist.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReservationReport"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/bookings": {
+      "post": {
+        "tags": [
+          "Bookings"
+        ],
+        "summary": "Claim a seat for a date",
+        "description": "Replaying the same Idempotency-Key returns the original booking instead of a 409.",
+        "operationId": "claim",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "Client-generated key; a repeat returns the original booking.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClaimBookingRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "The seat is now held by the caller.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Already booked (by someone else, or by the caller elsewhere).",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The seat is held for a team the caller is not in.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The date is outside the booking window.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/bookings/{id}/check-in": {
+      "post": {
+        "tags": [
+          "Bookings"
+        ],
+        "summary": "Check in to today's booking",
+        "description": "Only the owner may check in, and only for today's booking.",
+        "operationId": "checkIn",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Checked in.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/bookings/move": {
+      "post": {
+        "tags": [
+          "Bookings"
+        ],
+        "summary": "Move to a different seat on a date",
+        "description": "Atomically cancels whatever the caller holds that day and claims the new seat. A target seat that cannot be claimed leaves the original booking untouched and ACTIVE.",
+        "operationId": "move",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MoveBookingRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Now holding the new seat.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/login": {
+      "post": {
+        "tags": [
+          "local-login-controller"
+        ],
+        "operationId": "login",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/seatmap": {
+      "get": {
+        "tags": [
+          "Seat map"
+        ],
+        "summary": "Get the floor/zone/table/seat layout with each seat's state for a date",
+        "description": "Defaults to today (office clock) when date is omitted. One HTTP round trip: every seat's booking and team-hold state for the date is resolved in a bounded number of queries, never one per seat, so the response scales with the floor plan, not with how many seats happen to be booked.",
+        "operationId": "seatmap",
+        "parameters": [
+          {
+            "name": "date",
+            "in": "query",
+            "description": "ISO date (yyyy-MM-dd). Defaults to today in the office timezone.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The floor map for the requested date.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatMapResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/bookings/me": {
+      "get": {
+        "tags": [
+          "Bookings"
+        ],
+        "summary": "The caller's own bookings in a date range",
+        "description": "Defaults to today through the end of the booking window when from/to are omitted.",
+        "operationId": "mine",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "description": "Defaults to today in the office timezone.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "description": "Defaults to the end of the booking window.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The caller's bookings in the range, earliest first.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/BookingResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/me": {
+      "get": {
+        "tags": [
+          "auth-controller"
+        ],
+        "operationId": "me",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/CurrentUserResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/reservations/{id}": {
+      "delete": {
+        "tags": [
+          "Reservations"
+        ],
+        "summary": "Release a hold early",
+        "description": "The hold's creator, the manager of the team it is for, or an admin may release it.",
+        "operationId": "release",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Released."
+          },
+          "403": {
+            "description": "The caller may not release this hold."
+          },
+          "404": {
+            "description": "No reservation with that id."
+          }
+        }
+      }
+    },
+    "/api/bookings/{id}": {
+      "delete": {
+        "tags": [
+          "Bookings"
+        ],
+        "summary": "Cancel a booking",
+        "description": "The owner, the manager of a team the owner belongs to, or an admin may cancel.",
+        "operationId": "cancel",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The booking is now CANCELLED.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller does not own this booking.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No booking with that id.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "CreateReservationRequest": {
+        "type": "object",
+        "properties": {
+          "teamId": {
+            "type": "integer",
+            "format": "int64",
+            "example": 3
+          },
+          "seatIds": {
+            "type": "array",
+            "description": "Seats to hold for the team.",
+            "items": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "minItems": 1
+          },
+          "startDate": {
+            "type": "string",
+            "format": "date",
+            "example": "2026-08-10"
+          },
+          "endDate": {
+            "type": "string",
+            "format": "date",
+            "example": "2026-08-12"
+          },
+          "releaseAtTime": {
+            "type": "string",
+            "description": "Defaults to the configured team-block release time when omitted.",
+            "example": "10:00"
+          }
+        },
+        "required": [
+          "endDate",
+          "seatIds",
+          "startDate",
+          "teamId"
+        ]
+      },
+      "HeldSeat": {
+        "type": "object",
+        "properties": {
+          "reservationId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "seatId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "seatLabel": {
+            "type": "string"
+          }
+        }
+      },
+      "ReservationReport": {
+        "type": "object",
+        "properties": {
+          "teamId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "teamName": {
+            "type": "string"
+          },
+          "startDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "endDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "held": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HeldSeat"
+            }
+          },
+          "unavailable": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UnavailableSeat"
+            }
+          }
+        }
+      },
+      "UnavailableSeat": {
+        "type": "object",
+        "properties": {
+          "seatId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "seatLabel": {
+            "type": "string"
+          },
+          "conflictingDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "conflictingUserId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "conflictingUserDisplayName": {
+            "type": "string"
+          }
+        }
+      },
+      "ClaimBookingRequest": {
+        "type": "object",
+        "properties": {
+          "seatId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The seat to claim.",
+            "example": 42
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "description": "ISO date within the booking window.",
+            "example": "2026-08-10"
+          }
+        },
+        "required": [
+          "date",
+          "seatId"
+        ]
+      },
+      "BookingResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "seatId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "seatLabel": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "userDisplayName": {
+            "type": "string"
+          },
+          "bookingDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "CANCELLED",
+              "RELEASED_NO_SHOW"
+            ]
+          },
+          "checkedInAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "idempotencyKey": {
+            "type": "string"
+          }
+        }
+      },
+      "MoveBookingRequest": {
+        "type": "object",
+        "properties": {
+          "seatId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The seat to move to.",
+            "example": 43
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "description": "ISO date within the booking window.",
+            "example": "2026-08-10"
+          }
+        },
+        "required": [
+          "date",
+          "seatId"
+        ]
+      },
+      "LoginRequest": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "maxLength": 320,
+            "minLength": 0
+          },
+          "password": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 0
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ]
+      },
+      "CurrentUserResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "email": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "EMPLOYEE",
+              "MANAGER",
+              "ADMIN"
+            ]
+          },
+          "provider": {
+            "type": "string",
+            "enum": [
+              "LOCAL",
+              "ENTRA"
+            ]
+          }
+        }
+      },
+      "LoginResponse": {
+        "type": "object",
+        "properties": {
+          "accessToken": {
+            "type": "string"
+          },
+          "tokenType": {
+            "type": "string"
+          },
+          "expiresInSeconds": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "user": {
+            "$ref": "#/components/schemas/CurrentUserResponse"
+          }
+        }
+      },
+      "FloorMapView": {
+        "type": "object",
+        "properties": {
+          "floorId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "name": {
+            "type": "string"
+          },
+          "zones": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ZoneMapView"
+            }
+          }
+        }
+      },
+      "SeatMapResponse": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "floors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FloorMapView"
+            }
+          }
+        }
+      },
+      "SeatMapSeat": {
+        "type": "object",
+        "properties": {
+          "seatId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "seatLabel": {
+            "type": "string",
+            "example": "R3-A2"
+          },
+          "side": {
+            "type": "string",
+            "enum": [
+              "A",
+              "B"
+            ]
+          },
+          "seatIndex": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "accessible": {
+            "type": "boolean"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "AVAILABLE",
+              "OCCUPIED",
+              "TEAM_RESERVED",
+              "DISABLED"
+            ]
+          },
+          "bookingId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "occupantUserId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "occupantDisplayName": {
+            "type": "string"
+          },
+          "checkedIn": {
+            "type": "boolean"
+          },
+          "reservedForTeamId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "reservedForTeamName": {
+            "type": "string"
+          },
+          "reservedUntil": {
+            "type": "string"
+          }
+        }
+      },
+      "TableMapView": {
+        "type": "object",
+        "properties": {
+          "tableId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "label": {
+            "type": "string"
+          },
+          "capacity": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "posX": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "posY": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "rotation": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "seats": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SeatMapSeat"
+            }
+          }
+        }
+      },
+      "ZoneMapView": {
+        "type": "object",
+        "properties": {
+          "zoneId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "name": {
+            "type": "string"
+          },
+          "tables": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TableMapView"
+            }
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "description": "Obtain one from POST /api/auth/login (local provider) or the Entra OIDC flow, then send it as \"Authorization: Bearer <token>\".",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  }
+}

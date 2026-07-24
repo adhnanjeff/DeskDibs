@@ -45,6 +45,6 @@ public class AuthErrorWriter {
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding(StandardCharsets.UTF_8.name());
         objectMapper.writeValue(response.getOutputStream(),
-                new AuthErrorResponse(code, message, request.getRequestURI(), officeClock.timestamp()));
+                new AuthErrorResponse(code.name(), message, request.getRequestURI(), officeClock.timestamp(), null));
     }
 }

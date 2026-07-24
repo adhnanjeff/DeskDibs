@@ -11,6 +11,7 @@ import org.springframework.security.config.annotation.web.configurers.RequestCac
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.web.cors.CorsConfigurationSource;
 
 /**
  * The filter chain. Deny by default; open only what is named here.
@@ -52,15 +53,27 @@ public class SecurityConfig {
             "/v3/api-docs", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html"
     };
 
+    /**
+     * The STOMP handshake. A browser's native WebSocket API cannot attach an {@code Authorization}
+     * header to this upgrade request, so it is permitted here and authenticated one layer up
+     * instead: {@link com.deskdibs.realtime.StompAuthChannelInterceptor} requires and validates the
+     * same bearer JWT on the STOMP {@code CONNECT} frame that arrives immediately afterward, using
+     * this exact {@link JwtDecoder}. An unauthenticated socket is refused at that point, before it
+     * is ever subscribed to a topic — permitting the handshake does not permit occupancy data.
+     */
+    private static final String WEBSOCKET_PATH = "/ws";
+
     @Bean
     public SecurityFilterChain apiSecurityFilterChain(HttpSecurity http,
                                                       JwtDecoder jwtDecoder,
                                                       JwtPrincipalConverter principalConverter,
                                                       JsonAuthenticationEntryPoint entryPoint,
-                                                      JsonAccessDeniedHandler accessDeniedHandler)
+                                                      JsonAccessDeniedHandler accessDeniedHandler,
+                                                      CorsConfigurationSource corsConfigurationSource)
             throws Exception {
 
         http
+                .cors(cors -> cors.configurationSource(corsConfigurationSource))
                 .csrf(AbstractHttpConfigurer::disable)
                 .formLogin(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
@@ -79,6 +92,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, LOGIN_PATH).permitAll()
                         .requestMatchers(HEALTH_PATHS).permitAll()
                         .requestMatchers(OPENAPI_PATHS).permitAll()
+                        .requestMatchers(WEBSOCKET_PATH).permitAll()
 
                         // Everything else, including endpoints that do not exist yet.
                         .anyRequest().authenticated())
