@@ -16,9 +16,11 @@ describe('Role-gated navigation', () => {
 
     renderWithProviders(<App />, { route: '/' });
 
+    // The floor name is the seat-map page's heading, so this proves we landed
+    // inside the protected shell before asserting what the nav does not show.
     await waitFor(() => {
       expect(
-        screen.getByRole('heading', { name: /seat map/i }),
+        screen.getByRole('heading', { name: /floor 1/i }),
       ).toBeInTheDocument();
     });
 

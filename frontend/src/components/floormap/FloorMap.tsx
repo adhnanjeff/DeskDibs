@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faMagnifyingGlassPlus,
@@ -7,6 +7,7 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import type { components } from '../../api/schema';
 import { CANVAS, ROOMS, clusterCenter } from '../../lib/floorPlan';
+import { cellCenter, layoutPod } from '../../lib/podLayout';
 import { SEAT_STATE_META } from '../../lib/seatState';
 import { buildSeatModel, type SeatAnimation, type SeatTileModel } from '../../lib/seatModel';
 import { RoomShell } from './RoomShell';
@@ -29,6 +30,8 @@ interface FloorMapProps {
   onSelectSeat: (seat: SeatTileModel) => void;
   pendingSeatId: number | null;
   animatingSeat: { seatId: number; kind: SeatAnimation } | null;
+  /** Seat pinned by a colleague search; the map zooms to it when this changes. */
+  locatedSeatId?: number | null;
 }
 
 function SeatHoverCard({ seat, x, y }: { seat: SeatTileModel; x: number; y: number }) {
@@ -57,6 +60,7 @@ export function FloorMap({
   onSelectSeat,
   pendingSeatId,
   animatingSeat,
+  locatedSeatId = null,
 }: FloorMapProps) {
   const pz = usePanZoom();
   const [hovered, setHovered] = useState<{ seat: SeatTileModel; x: number; y: number } | null>(
@@ -79,6 +83,25 @@ export function FloorMap({
     }
     return out;
   }, [seatMap, currentUserId, pendingSeatId]);
+
+  /** Where every seat sits on the canvas — what the map needs to fly to one. */
+  const seatPoints = useMemo(() => {
+    const points = new Map<number, { x: number; y: number }>();
+    for (const cluster of clusters) {
+      const layout = layoutPod(cluster.seats);
+      for (const cell of layout.cells) {
+        points.set(cell.seat.seatId, cellCenter(cluster.center, layout, cell));
+      }
+    }
+    return points;
+  }, [clusters]);
+
+  const { focusOn } = pz;
+  useEffect(() => {
+    if (locatedSeatId == null) return;
+    const point = seatPoints.get(locatedSeatId);
+    if (point) focusOn(point.x, point.y);
+  }, [locatedSeatId, seatPoints, focusOn]);
 
   const handleHover = (seat: SeatTileModel | null, el: HTMLElement | null) => {
     if (!seat || !el) {
@@ -120,6 +143,7 @@ export function FloorMap({
               center={cluster.center}
               seats={cluster.seats}
               selectedSeatId={selectedSeatId}
+              locatedSeatId={locatedSeatId}
               animatingSeat={animatingSeat}
               onSelect={onSelectSeat}
               onHover={handleHover}

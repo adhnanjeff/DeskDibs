@@ -8,6 +8,7 @@ interface SeatClusterProps {
   center: { x: number; y: number };
   seats: SeatTileModel[];
   selectedSeatId: number | null;
+  locatedSeatId: number | null;
   animatingSeat: { seatId: number; kind: SeatAnimation } | null;
   onSelect: (seat: SeatTileModel) => void;
   onHover: (seat: SeatTileModel | null, el: HTMLElement | null) => void;
@@ -24,6 +25,7 @@ export function SeatCluster({
   center,
   seats,
   selectedSeatId,
+  locatedSeatId,
   animatingSeat,
   onSelect,
   onHover,
@@ -55,6 +57,7 @@ export function SeatCluster({
             <SeatTile
               seat={cell.seat}
               selected={cell.seat.seatId === selectedSeatId}
+              located={cell.seat.seatId === locatedSeatId}
               animation={
                 animatingSeat?.seatId === cell.seat.seatId ? animatingSeat.kind : null
               }

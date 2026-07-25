@@ -73,6 +73,15 @@ deskdibs:
     booking-horizon-days: ${BOOKING_HORIZON_DAYS:14}
     team-block-release-time: ${TEAM_BLOCK_RELEASE_TIME:10:00}
     no-show-release-time: ${NO_SHOW_RELEASE_TIME:11:00}
+    # Cron day-of-week field for the no-show release. Mon-Fri until IT confirms the
+    # office's working days (PLAN.md §12).
+    no-show-release-days: ${NO_SHOW_RELEASE_DAYS:MON-FRI}
+
+  # The no-show release is the only scheduled work in the system. Switched off across
+  # the test suite, which drives NoShowReleaseService directly against a movable clock
+  # rather than waiting for a trigger to fire.
+  scheduling:
+    enabled: ${SCHEDULING_ENABLED:true}
 
   # Browser origins allowed to call the API and open the /ws STOMP endpoint. Exact
   # origins only, never a wildcard — see CorsProperties/WebCorsConfiguration.

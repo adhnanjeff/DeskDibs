@@ -1,10 +1,12 @@
 package com.deskdibs.booking;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -110,4 +112,41 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     List<Booking> findActiveBookingsForSeatInRangeFetchUser(@Param("seatId") Long seatId,
                                                             @Param("from") LocalDate from,
                                                             @Param("to") LocalDate to);
+
+    // ─── No-show release ─────────────────────────────────────────────────────────
+
+    /**
+     * Who held a seat on {@code date} and never turned up. Read before the release so the seats
+     * freed can be broadcast; {@code seat} is deliberately not fetch-joined, because the caller
+     * only needs each booking's seat id, which reads off the foreign key without initialising the
+     * proxy.
+     */
+    @Query("""
+           select b from Booking b
+           where b.bookingDate = :date and b.status = 'ACTIVE' and b.checkedInAt is null
+           """)
+    List<Booking> findNoShowCandidates(@Param("date") LocalDate date);
+
+    /**
+     * Release every no-show on {@code date} in one statement.
+     *
+     * <p>A bulk update rather than a loop over entities, because the {@code where} clause is
+     * re-evaluated by the database at write time: somebody checking in during the same second the
+     * job runs simply falls out of the predicate and keeps their seat. Reading the rows first and
+     * then saving them one by one would decide their fate from a snapshot taken before that
+     * check-in landed.
+     *
+     * <p>{@code updatedAt} is set explicitly because a bulk update bypasses Hibernate's
+     * {@code @UpdateTimestamp}, and {@code clearAutomatically} drops the now-stale entities from
+     * the persistence context so nothing downstream reads a pre-release copy.
+     *
+     * @return how many bookings actually moved to {@code RELEASED_NO_SHOW}
+     */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+           update Booking b
+              set b.status = com.deskdibs.booking.BookingStatus.RELEASED_NO_SHOW, b.updatedAt = :now
+            where b.bookingDate = :date and b.status = 'ACTIVE' and b.checkedInAt is null
+           """)
+    int releaseNoShows(@Param("date") LocalDate date, @Param("now") OffsetDateTime now);
 }

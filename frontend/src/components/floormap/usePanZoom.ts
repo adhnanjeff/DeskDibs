@@ -134,6 +134,27 @@ export function usePanZoom() {
     }
   };
 
+  /**
+   * Put a canvas point in the middle of the viewport, zoomed in enough to be worth looking at.
+   *
+   * Panning alone would do nothing at the resting fit scale, where the whole floor is already
+   * on screen and there is nowhere to pan to — so "show me this seat" has to zoom as well as
+   * centre, or it appears to do nothing at all.
+   */
+  const focusOn = useCallback(
+    (canvasX: number, canvasY: number, targetScale = 1.8) => {
+      const vp = viewportRef.current;
+      if (!vp || vp.clientWidth === 0) return;
+      const scale = Math.min(MAX_SCALE, Math.max(minScale, targetScale));
+      setTransform({
+        scale,
+        x: vp.clientWidth / 2 - canvasX * scale,
+        y: vp.clientHeight / 2 - canvasY * scale,
+      });
+    },
+    [minScale],
+  );
+
   const zoomBy = (factor: number) => {
     const vp = viewportRef.current;
     if (!vp) return;
@@ -157,5 +178,6 @@ export function usePanZoom() {
     zoomIn: () => zoomBy(1.25),
     zoomOut: () => zoomBy(0.8),
     reset: fit,
+    focusOn,
   };
 }

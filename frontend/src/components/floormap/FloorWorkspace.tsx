@@ -12,6 +12,10 @@ import { FloorLegend } from './FloorLegend';
 import { SeatListFallback } from './SeatListFallback';
 import { Floor3DOverlay } from '../floor3d/Floor3DOverlay';
 import { preloadFloor3D } from '../floor3d/lazyScene';
+import { OfficeOverview } from './OfficeOverview';
+import { FindColleague } from './FindColleague';
+import { summariseOffice } from '../../lib/officeStats';
+import { indexColleagues, type Colleague } from '../../lib/colleagueSearch';
 
 type SeatMapResponse = components['schemas']['SeatMapResponse'];
 type SeatMapSeat = components['schemas']['SeatMapSeat'];
@@ -43,6 +47,8 @@ export function FloorWorkspace({ seatMap, currentUserId }: FloorWorkspaceProps) 
   const floors = (seatMap.floors ?? []).map((floor) => floor.name ?? '').filter(Boolean);
   const activeFloor = floors[0] ?? null;
   const seatCount = useMemo(() => countSeats(seatMap), [seatMap]);
+  const stats = useMemo(() => summariseOffice(seatMap), [seatMap]);
+  const colleagues = useMemo(() => indexColleagues(seatMap), [seatMap]);
 
   const [selectedSeat, setSelectedSeat] = useState<SeatTileModel | null>(null);
   const [pendingSeatId, setPendingSeatId] = useState<number | null>(null);
@@ -51,6 +57,7 @@ export function FloorWorkspace({ seatMap, currentUserId }: FloorWorkspaceProps) 
   );
   const [view, setView] = useState<'map' | 'list'>('map');
   const [show3D, setShow3D] = useState(false);
+  const [located, setLocated] = useState<Colleague | null>(null);
   const [announcement, setAnnouncement] = useState('');
   const [bookError, setBookError] = useState<string | null>(null);
 
@@ -136,6 +143,8 @@ export function FloorWorkspace({ seatMap, currentUserId }: FloorWorkspaceProps) 
         <FloorLegend />
       </div>
 
+      <OfficeOverview stats={stats} />
+
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <span className="border-2 border-ink bg-ink px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-wider text-paper">
           Finalized layout
@@ -150,7 +159,16 @@ export function FloorWorkspace({ seatMap, currentUserId }: FloorWorkspaceProps) 
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[248px_1fr]">
-        <div className="order-2 lg:order-1">
+        <div className="order-2 flex flex-col gap-4 lg:order-1">
+          <FindColleague
+            people={colleagues}
+            located={located}
+            onLocate={(person) => {
+              setLocated(person);
+              setAnnouncement(`${person.name} is at seat ${person.seatLabel}. Showing it on the map.`);
+            }}
+            onClear={() => setLocated(null)}
+          />
           <FloorSidebar
             floors={floors}
             activeFloor={activeFloor}
@@ -170,6 +188,7 @@ export function FloorWorkspace({ seatMap, currentUserId }: FloorWorkspaceProps) 
               onSelectSeat={handleSelect}
               pendingSeatId={pendingSeatId}
               animatingSeat={animatingSeat}
+              locatedSeatId={located?.seatId ?? null}
             />
           ) : (
             <SeatListFallback

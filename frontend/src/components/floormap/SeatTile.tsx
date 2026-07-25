@@ -7,6 +7,8 @@ interface SeatTileProps {
   seat: SeatTileModel;
   selected: boolean;
   animation: SeatAnimation | null;
+  /** Pinned by a colleague search — the answer to "where are they sitting?". */
+  located?: boolean;
   onSelect: (seat: SeatTileModel) => void;
   onHover: (seat: SeatTileModel | null, el: HTMLElement | null) => void;
 }
@@ -16,15 +18,24 @@ interface SeatTileProps {
  * travel together. Actionable (available) seats lift on hover/focus and can be
  * selected; every seat, actionable or not, reveals who's there on hover/focus.
  */
-export function SeatTile({ seat, selected, animation, onSelect, onHover }: SeatTileProps) {
+export function SeatTile({
+  seat,
+  selected,
+  animation,
+  located = false,
+  onSelect,
+  onHover,
+}: SeatTileProps) {
   const state: SeatDisplayState = selected ? 'SELECTED' : seat.displayState;
   const meta = SEAT_STATE_META[state];
   const glyph = meta.glyph === 'paper' ? 'var(--color-paper)' : 'var(--color-ink)';
   const canAct = meta.actionable;
   const occupant = seat.occupantName ? ` — ${seat.occupantName}` : '';
+  // "Located" goes in the accessible name too: a ring around a tile is invisible to a screen
+  // reader, so the search result has to be announced, not just drawn.
   const ariaLabel = `Seat ${seat.seatLabel}: ${meta.label}${occupant}${
-    canAct ? '. Press to select.' : ''
-  }`;
+    located ? '. Located by search.' : ''
+  }${canAct ? '. Press to select.' : ''}`;
   const anim =
     animation === 'claimed'
       ? 'seat-claimed'
@@ -56,6 +67,11 @@ export function SeatTile({ seat, selected, animation, onSelect, onHover }: SeatT
         height: SEAT_TILE,
         background: meta.fill,
         transition: 'transform 120ms ease, box-shadow 120ms ease',
+        // A located seat wears a heavy blue halo — distinct from the yellow of
+        // selection, and drawn outside the tile so it never hides the state icon.
+        ...(located
+          ? { outline: '3px solid var(--color-bauhaus-blue)', outlineOffset: 2, zIndex: 1 }
+          : null),
       }}
     >
       <FontAwesomeIcon

@@ -26,9 +26,10 @@ describe('LoginPage', () => {
     await user.type(screen.getByLabelText(/password/i), 'password');
     await user.click(screen.getByRole('button', { name: /sign in/i }));
 
-    // Redirected past the login form into the protected shell.
+    // Redirected past the login form into the protected shell, which lands on
+    // the seat map — headed by the floor's own name.
     expect(
-      await screen.findByRole('heading', { name: /seat map/i }),
+      await screen.findByRole('heading', { name: /floor 1/i }),
     ).toBeInTheDocument();
 
     const stored = sessionStorage.getItem('deskdibs.session');
