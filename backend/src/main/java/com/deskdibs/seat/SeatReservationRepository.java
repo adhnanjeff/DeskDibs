@@ -30,4 +30,19 @@ public interface SeatReservationRepository extends JpaRepository<SeatReservation
            where r.startDate <= :date and r.endDate >= :date
            """)
     List<SeatReservation> findActiveOnDateFetchTeam(@Param("date") LocalDate date);
+
+    /**
+     * Holds that have not finished yet, with everything the manager UI shows eagerly joined.
+     * Expired holds are left out: a block that ended last week is history nobody can act on, and
+     * {@code seat_reservation} keeps no status to distinguish it by.
+     */
+    @Query("""
+           select r from SeatReservation r
+           join fetch r.seat
+           join fetch r.team
+           left join fetch r.createdBy
+           where r.endDate >= :from
+           order by r.startDate asc, r.seat.label asc
+           """)
+    List<SeatReservation> findNotEndedBeforeFetchAll(@Param("from") LocalDate from);
 }

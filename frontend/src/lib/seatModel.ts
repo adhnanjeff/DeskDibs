@@ -14,6 +14,9 @@ export interface SeatTileModel {
   side: 'A' | 'B';
   /** Position along the side, 1-based — the row within the rotated pod. */
   seatIndex: number;
+  /** Team this seat is held for, when it is — drives the per-team tint. */
+  teamId?: number | null;
+  teamName?: string | null;
 }
 
 /** The three transient motions a tile can play, all state-explaining. */
@@ -50,5 +53,7 @@ export function buildSeatModel(
     actionable: SEAT_STATE_META[displayState].actionable,
     side: seat.side === 'B' ? 'B' : 'A',
     seatIndex: seat.seatIndex ?? 1,
+    teamId: seat.reservedForTeamId,
+    teamName: seat.reservedForTeamName,
   };
 }

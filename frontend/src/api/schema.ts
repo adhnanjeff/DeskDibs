@@ -11,7 +11,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * List live and upcoming holds the caller may release
+         * @description Holds that have not ended yet, filtered to the ones this caller could act on: their own, their teams', or everything for an admin.
+         */
+        get: operations["list"];
         put?: never;
         /**
          * Hold seats for a team over a date range
@@ -112,6 +116,26 @@ export interface paths {
          * @description Defaults to today (office clock) when date is omitted. One HTTP round trip: every seat's booking and team-hold state for the date is resolved in a bounded number of queries, never one per seat, so the response scales with the floor plan, not with how many seats happen to be booked.
          */
         get: operations["seatmap"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/reservations/teams": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Teams the caller may hold seats for
+         * @description Every team for an admin; only the teams they manage for a manager — the same rule the create endpoint enforces.
+         */
+        get: operations["teams"];
         put?: never;
         post?: never;
         delete?: never;
@@ -373,6 +397,34 @@ export interface components {
             name?: string;
             tables?: components["schemas"]["TableMapView"][];
         };
+        ReservationView: {
+            /** Format: int64 */
+            id?: number;
+            /** Format: int64 */
+            seatId?: number;
+            seatLabel?: string;
+            /** Format: int64 */
+            teamId?: number;
+            teamName?: string;
+            /** Format: date */
+            startDate?: string;
+            /** Format: date */
+            endDate?: string;
+            releaseAtTime?: string;
+            createdByName?: string;
+            enforcedNow?: boolean;
+        };
+        TeamView: {
+            /**
+             * Format: int64
+             * @example 3
+             */
+            id?: number;
+            /** @example Platform */
+            name?: string;
+            /** @description Display name of the team's manager, when one is set. */
+            managerName?: string;
+        };
     };
     responses: never;
     parameters: never;
@@ -382,6 +434,26 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The caller's holds. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ReservationView"][];
+                };
+            };
+        };
+    };
     create: {
         parameters: {
             query?: never;
@@ -404,7 +476,7 @@ export interface operations {
                     "*/*": components["schemas"]["ReservationReport"];
                 };
             };
-            /** @description The caller is neither a manager nor an admin. */
+            /** @description The caller is neither a manager nor an admin, or does not manage that team. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -569,6 +641,26 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["SeatMapResponse"];
+                };
+            };
+        };
+    };
+    teams: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The caller's teams. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["TeamView"][];
                 };
             };
         };

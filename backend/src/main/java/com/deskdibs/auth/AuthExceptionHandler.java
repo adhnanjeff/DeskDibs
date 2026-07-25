@@ -215,7 +215,7 @@ public class AuthExceptionHandler {
         return switch (code) {
             case TEAM_NOT_FOUND, SEAT_NOT_FOUND, RESERVATION_NOT_FOUND -> HttpStatus.NOT_FOUND;
             case INVALID_RESERVATION_RANGE -> HttpStatus.BAD_REQUEST;
-            case RESERVATION_ACCESS_DENIED -> HttpStatus.FORBIDDEN;
+            case RESERVATION_ACCESS_DENIED, TEAM_ACCESS_DENIED -> HttpStatus.FORBIDDEN;
         };
     }
 
@@ -225,7 +225,7 @@ public class AuthExceptionHandler {
             case SEAT_NOT_FOUND -> "No seat was found with that id.";
             case RESERVATION_NOT_FOUND -> "No reservation was found with that id.";
             case INVALID_RESERVATION_RANGE -> "The reservation end date must not be before the start date.";
-            case RESERVATION_ACCESS_DENIED -> ACCESS_DENIED_MESSAGE;
+            case RESERVATION_ACCESS_DENIED, TEAM_ACCESS_DENIED -> ACCESS_DENIED_MESSAGE;
         };
     }
 

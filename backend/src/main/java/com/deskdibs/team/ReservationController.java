@@ -1,6 +1,7 @@
 package com.deskdibs.team;
 
 import com.deskdibs.auth.CurrentUser;
+import com.deskdibs.common.OfficeClock;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -9,11 +10,14 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 /**
  * Team seat holds over HTTP: MANAGER or ADMIN only.
@@ -30,10 +34,14 @@ public class ReservationController {
 
     private final ReservationService reservationService;
     private final CurrentUser currentUser;
+    private final OfficeClock officeClock;
 
-    public ReservationController(ReservationService reservationService, CurrentUser currentUser) {
+    public ReservationController(ReservationService reservationService,
+                                 CurrentUser currentUser,
+                                 OfficeClock officeClock) {
         this.reservationService = reservationService;
         this.currentUser = currentUser;
+        this.officeClock = officeClock;
     }
 
     @PostMapping
@@ -43,11 +51,32 @@ public class ReservationController {
                     + "seats were held and which were left alone because somebody already holds them, and on "
                     + "which day.")
     @ApiResponse(responseCode = "200", description = "The partial-success report.")
-    @ApiResponse(responseCode = "403", description = "The caller is neither a manager nor an admin.")
+    @ApiResponse(responseCode = "403",
+            description = "The caller is neither a manager nor an admin, or does not manage that team.")
     @ApiResponse(responseCode = "404", description = "The team, or one of the seat ids, does not exist.")
     public ReservationReport create(@Valid @RequestBody CreateReservationRequest request) {
         return reservationService.create(currentUser.requireId(), request.teamId(), request.seatIds(),
                 request.startDate(), request.endDate(), request.releaseAtTime());
+    }
+
+    @GetMapping
+    @PreAuthorize("hasAnyRole('MANAGER','ADMIN')")
+    @Operation(summary = "List live and upcoming holds the caller may release",
+            description = "Holds that have not ended yet, filtered to the ones this caller could act on: "
+                    + "their own, their teams', or everything for an admin.")
+    @ApiResponse(responseCode = "200", description = "The caller's holds.")
+    public List<ReservationView> list() {
+        return reservationService.upcomingFor(currentUser.requireId(), officeClock.today());
+    }
+
+    @GetMapping("/teams")
+    @PreAuthorize("hasAnyRole('MANAGER','ADMIN')")
+    @Operation(summary = "Teams the caller may hold seats for",
+            description = "Every team for an admin; only the teams they manage for a manager — the same "
+                    + "rule the create endpoint enforces.")
+    @ApiResponse(responseCode = "200", description = "The caller's teams.")
+    public List<TeamView> teams() {
+        return reservationService.teamsFor(currentUser.requireId());
     }
 
     @DeleteMapping("/{id}")

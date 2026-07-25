@@ -58,6 +58,12 @@ export function FloorWorkspace({ seatMap, currentUserId }: FloorWorkspaceProps) 
   const [view, setView] = useState<'map' | 'list'>('map');
   const [show3D, setShow3D] = useState(false);
   const [located, setLocated] = useState<Colleague | null>(null);
+
+  // Booking picks exactly one seat; the map speaks in sets so a team hold can pick a block.
+  const selectedSeatIds = useMemo(
+    () => new Set(selectedSeat ? [selectedSeat.seatId] : []),
+    [selectedSeat],
+  );
   const [announcement, setAnnouncement] = useState('');
   const [bookError, setBookError] = useState<string | null>(null);
 
@@ -184,7 +190,7 @@ export function FloorWorkspace({ seatMap, currentUserId }: FloorWorkspaceProps) 
             <FloorMap
               seatMap={seatMap}
               currentUserId={currentUserId}
-              selectedSeatId={selectedSeat?.seatId ?? null}
+              selectedSeatIds={selectedSeatIds}
               onSelectSeat={handleSelect}
               pendingSeatId={pendingSeatId}
               animatingSeat={animatingSeat}

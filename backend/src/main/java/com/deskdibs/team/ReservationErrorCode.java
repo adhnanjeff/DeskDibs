@@ -21,5 +21,8 @@ public enum ReservationErrorCode {
     RESERVATION_NOT_FOUND,
 
     /** The acting user did not create this hold, does not manage the team it is for, and is not an admin. */
-    RESERVATION_ACCESS_DENIED
+    RESERVATION_ACCESS_DENIED,
+
+    /** The acting user is a manager, but not of the team they tried to hold seats for. */
+    TEAM_ACCESS_DENIED
 }

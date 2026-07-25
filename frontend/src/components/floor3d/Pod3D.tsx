@@ -1,8 +1,9 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Edges, Html } from '@react-three/drei';
 import type { Mesh } from 'three';
 import { CHAIR } from '../../lib/floor3d';
+import { teamTint } from '../../lib/teamColors';
 import type { SeatTileModel } from '../../lib/seatModel';
 import type { Pod3D as Pod3DModel, Seat3D } from './useFloorScene';
 
@@ -56,7 +57,9 @@ export function Pod3D({
           color={
             s.seat.seatId === selectedSeatId
               ? seatColors.SELECTED
-              : (seatColors[s.seat.displayState] ?? seatColors.AVAILABLE)
+              : s.seat.displayState === 'TEAM_RESERVED'
+                ? teamTint(s.seat.teamId)
+                : (seatColors[s.seat.displayState] ?? seatColors.AVAILABLE)
           }
           inkColor={inkColor}
           selected={s.seat.seatId === selectedSeatId}
@@ -95,10 +98,18 @@ function Chair3D({
 }: Chair3DProps) {
   const { seat, position, facing } = placement;
   const beaconRef = useRef<Mesh>(null);
+  const [hovered, setHovered] = useState(false);
 
   // The backrest sits on the side away from the desk, so the chair reads as
   // facing its work surface from any orbit angle.
   const backX = -facing * (CHAIR.padW / 2 - CHAIR.backT / 2);
+
+  // Who is here, if anyone. Reading the occupant off the map means a team hold names its team.
+  const occupant = seat.occupantName;
+  // A marker rises over the seat you picked *and* over whatever you point at. Pointing at a desk
+  // to find out who sits there is the single most common thing to do in this view, and an answer
+  // that only appears in a footer at the bottom of the screen is an answer most people miss.
+  const showMarker = selected || (hovered && Boolean(occupant));
 
   useFrame((state) => {
     if (!beaconRef.current) return;
@@ -116,9 +127,13 @@ function Chair3D({
       }}
       onPointerOver={(e) => {
         e.stopPropagation();
+        setHovered(true);
         onHover(seat);
       }}
-      onPointerOut={() => onHover(null)}
+      onPointerOut={() => {
+        setHovered(false);
+        onHover(null);
+      }}
     >
       <mesh position={[0, CHAIR.seatY / 2, 0]} castShadow>
         <cylinderGeometry args={[CHAIR.legR, CHAIR.legR * 1.6, CHAIR.seatY, 10]} />
@@ -138,17 +153,34 @@ function Chair3D({
       </mesh>
 
       {selected && (
-        <>
-          <mesh position={[0, 0.04, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-            <ringGeometry args={[0.85, 1.15, 32]} />
-            <meshBasicMaterial color={color} toneMapped={false} />
-          </mesh>
-          <mesh ref={beaconRef} position={[0, 2.3, 0]} rotation={[Math.PI, 0, 0]}>
-            <coneGeometry args={[0.34, 0.8, 4]} />
-            <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.5} />
-            <Edges threshold={15} color={inkColor} />
-          </mesh>
-        </>
+        <mesh position={[0, 0.04, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+          <ringGeometry args={[0.85, 1.15, 32]} />
+          <meshBasicMaterial color={color} toneMapped={false} />
+        </mesh>
+      )}
+
+      {showMarker && (
+        <mesh ref={beaconRef} position={[0, 2.3, 0]} rotation={[Math.PI, 0, 0]}>
+          <coneGeometry args={[0.34, 0.8, 4]} />
+          <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.5} />
+          <Edges threshold={15} color={inkColor} />
+        </mesh>
+      )}
+
+      {hovered && occupant && (
+        <Html
+          position={[0, 3.4, 0]}
+          center
+          zIndexRange={[20, 10]}
+          style={{ pointerEvents: 'none', userSelect: 'none' }}
+        >
+          <span className="flex flex-col items-center whitespace-nowrap border-2 border-ink bg-paper px-2 py-1 shadow-brutal-sm">
+            <span className="text-[13px] font-bold leading-tight text-ink">{occupant}</span>
+            <span className="font-mono text-[11px] uppercase tracking-wider text-ink/60">
+              {seat.seatLabel}
+            </span>
+          </span>
+        </Html>
       )}
     </group>
   );
