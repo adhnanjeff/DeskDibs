@@ -1,0 +1,78 @@
+name: Frontend CI
+
+# Deliberately no `paths:` filter, despite the note in backend-ci.yml.
+#
+# A path filter on a check that is *required* for merge is a trap: GitHub never
+# reports the check at all for a PR that doesn't touch the filtered directory, so
+# the PR waits forever on a status that will never arrive. Running both workflows
+# on every PR costs a couple of runner-minutes and has no silent failure mode.
+# If these ever become slow enough to matter, use a change-detection job that
+# always reports rather than a `paths:` filter.
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+# A new push to the same branch makes the in-flight run obsolete.
+concurrency:
+  group: frontend-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build and test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      # Read the version from .nvmrc so CI and local development can never drift.
+      # Vite 8 refuses to run on anything older than 20.19 / 22.12, and jsdom's
+      # test environment is version-sensitive too — a mismatch here shows up as a
+      # worker timeout rather than an honest error.
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      # `ci` not `install`: installs exactly the lockfile, and fails if
+      # package.json and the lock have drifted apart.
+      - name: Install dependencies
+        run: npm ci
+
+      # Each step is separate so a failure names itself in the job summary rather
+      # than being buried in a combined command's output.
+      - name: Typecheck
+        run: npx tsc -b
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm run test
+
+      # The real production build, including the Rolldown pass — this is what
+      # catches a bundler-only failure that dev-mode HMR happily tolerates.
+      - name: Build
+        run: npm run build
+
+      - name: Upload build output
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vite-build
+          path: frontend/dist/
+          retention-days: 7
+          if-no-files-found: ignore

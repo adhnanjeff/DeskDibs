@@ -26,8 +26,11 @@ interface ClusterModel {
 interface FloorMapProps {
   seatMap: SeatMapResponse;
   currentUserId?: number | null;
-  selectedSeatId: number | null;
+  /** Every picked seat — one when booking, a whole block when holding seats for a team. */
+  selectedSeatIds: ReadonlySet<number>;
   onSelectSeat: (seat: SeatTileModel) => void;
+  /** Overrides which seats are clickable; defaults to "only free ones". */
+  canSelect?: (seat: SeatTileModel) => boolean;
   pendingSeatId: number | null;
   animatingSeat: { seatId: number; kind: SeatAnimation } | null;
   /** Seat pinned by a colleague search; the map zooms to it when this changes. */
@@ -56,13 +59,28 @@ function SeatHoverCard({ seat, x, y }: { seat: SeatTileModel; x: number; y: numb
 export function FloorMap({
   seatMap,
   currentUserId,
-  selectedSeatId,
+  selectedSeatIds,
   onSelectSeat,
+  canSelect,
   pendingSeatId,
   animatingSeat,
   locatedSeatId = null,
 }: FloorMapProps) {
-  const pz = usePanZoom();
+  // Destructured rather than kept as one `pz` object: the hook hands back a ref alongside its
+  // values, and reading any property off that object during render trips react-hooks/refs.
+  const {
+    viewportRef,
+    transform,
+    canZoomIn,
+    canZoomOut,
+    onPointerDown,
+    onPointerMove,
+    onPointerUp,
+    zoomIn,
+    zoomOut,
+    reset,
+    focusOn,
+  } = usePanZoom();
   const [hovered, setHovered] = useState<{ seat: SeatTileModel; x: number; y: number } | null>(
     null,
   );
@@ -96,7 +114,6 @@ export function FloorMap({
     return points;
   }, [clusters]);
 
-  const { focusOn } = pz;
   useEffect(() => {
     if (locatedSeatId == null) return;
     const point = seatPoints.get(locatedSeatId);
@@ -115,22 +132,22 @@ export function FloorMap({
   return (
     <div className="relative">
       <div
-        ref={pz.viewportRef}
+        ref={viewportRef}
         role="group"
         aria-label="Office floor map. Drag to pan, scroll or pinch to zoom."
         className="relative w-full cursor-grab touch-none overflow-hidden border-2 border-ink bg-paper-dim active:cursor-grabbing"
         style={{ aspectRatio: `${CANVAS.w} / ${CANVAS.h}` }}
-        onPointerDown={pz.onPointerDown}
-        onPointerMove={pz.onPointerMove}
-        onPointerUp={pz.onPointerUp}
-        onPointerCancel={pz.onPointerUp}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerUp}
       >
         <div
           className="absolute left-0 top-0 origin-top-left"
           style={{
             width: CANVAS.w,
             height: CANVAS.h,
-            transform: `translate(${pz.transform.x}px, ${pz.transform.y}px) scale(${pz.transform.scale})`,
+            transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
           }}
         >
           {ROOMS.map((room) => (
@@ -142,9 +159,10 @@ export function FloorMap({
               label={cluster.label}
               center={cluster.center}
               seats={cluster.seats}
-              selectedSeatId={selectedSeatId}
+              selectedSeatIds={selectedSeatIds}
               locatedSeatId={locatedSeatId}
               animatingSeat={animatingSeat}
+              canSelect={canSelect}
               onSelect={onSelectSeat}
               onHover={handleHover}
             />
@@ -153,9 +171,9 @@ export function FloorMap({
       </div>
 
       <div className="absolute bottom-3 right-3 flex flex-col gap-1.5">
-        <ZoomButton label="Zoom in" icon={faMagnifyingGlassPlus} onClick={pz.zoomIn} disabled={!pz.canZoomIn} />
-        <ZoomButton label="Zoom out" icon={faMagnifyingGlassMinus} onClick={pz.zoomOut} disabled={!pz.canZoomOut} />
-        <ZoomButton label="Reset view" icon={faExpand} onClick={pz.reset} disabled={false} />
+        <ZoomButton label="Zoom in" icon={faMagnifyingGlassPlus} onClick={zoomIn} disabled={!canZoomIn} />
+        <ZoomButton label="Zoom out" icon={faMagnifyingGlassMinus} onClick={zoomOut} disabled={!canZoomOut} />
+        <ZoomButton label="Reset view" icon={faExpand} onClick={reset} disabled={false} />
       </div>
 
       {hovered && <SeatHoverCard seat={hovered.seat} x={hovered.x} y={hovered.y} />}

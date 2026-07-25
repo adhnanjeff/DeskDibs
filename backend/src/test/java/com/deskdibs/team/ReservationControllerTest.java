@@ -5,6 +5,8 @@ import com.deskdibs.booking.Booking;
 import com.deskdibs.booking.BookingRepository;
 import com.deskdibs.booking.BookingStatus;
 import com.deskdibs.common.ControllableClockConfiguration;
+import com.deskdibs.common.MutableClock;
+import com.deskdibs.common.OfficeProperties;
 import com.deskdibs.seat.Seat;
 import com.deskdibs.seat.SeatRepository;
 import com.deskdibs.seat.SeatReservationRepository;
@@ -27,11 +29,15 @@ import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -56,6 +62,8 @@ class ReservationControllerTest extends AbstractAuthWebTest {
     private final SeatReservationRepository reservations;
     private final TeamRepository teams;
     private final PasswordEncoder passwordEncoder;
+    private final MutableClock clock;
+    private final ZoneId office;
 
     private long dana;
     private long erin;
@@ -69,7 +77,9 @@ class ReservationControllerTest extends AbstractAuthWebTest {
                               SeatRepository seats,
                               SeatReservationRepository reservations,
                               TeamRepository teams,
-                              PasswordEncoder passwordEncoder) {
+                              PasswordEncoder passwordEncoder,
+                              MutableClock clock,
+                              OfficeProperties officeProperties) {
         this.mockMvc = mockMvc;
         this.json = json;
         this.users = users;
@@ -78,10 +88,15 @@ class ReservationControllerTest extends AbstractAuthWebTest {
         this.reservations = reservations;
         this.teams = teams;
         this.passwordEncoder = passwordEncoder;
+        this.clock = clock;
+        this.office = officeProperties.timezone();
     }
 
     @BeforeEach
     void resetTheOfficeAndItsPeople() {
+        // The clock bean is cached with the Spring context, so a test that moves it past a cut-off
+        // would otherwise leak that time into every test after it.
+        clock.setTo(ZonedDateTime.of(TODAY, ControllableClockConfiguration.DEFAULT_TIME_OF_DAY, office));
         clearEverything();
         restoreEverySeat();
 
@@ -154,6 +169,101 @@ class ReservationControllerTest extends AbstractAuthWebTest {
         mockMvc.perform(authed(delete("/api/reservations/" + reservationId), dana))
                 .andExpect(status().isNoContent());
         assertThat(reservations.existsById(reservationId)).isFalse();
+    }
+
+    @Test
+    @DisplayName("a manager cannot hold desks in another team's name")
+    void aManagerCannotReserveForATeamTheyDoNotManage() throws Exception {
+        long otherManager = person("mo@deskdibs.test", "Mo R.", UserRole.MANAGER);
+        long designTeam = teams.saveAndFlush(new Team("Design", user(otherManager))).getId();
+
+        // Dana manages Platform, not Design. Holding a block of desks under somebody else's team
+        // is a mutation on their team, so the MANAGER role alone must not be enough.
+        mockMvc.perform(reservationRequest(dana, designTeam, List.of(seatId("R4-A1")), TODAY, TODAY))
+                .andExpect(status().isForbidden());
+
+        assertThat(reservations.count()).isZero();
+    }
+
+    @Test
+    @DisplayName("an admin may hold seats for any team")
+    void anAdminMayReserveForAnyTeam() throws Exception {
+        long root = person("root@deskdibs.test", "Root A.", UserRole.ADMIN);
+
+        mockMvc.perform(reservationRequest(root, platformTeamId, List.of(seatId("R4-A1")), TODAY, TODAY))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.held.length()").value(1));
+    }
+
+    @Test
+    @DisplayName("a manager is offered only the teams they manage; an admin sees them all")
+    void teamsEndpointOffersOnlyWhatCreateWouldAccept() throws Exception {
+        long otherManager = person("mo@deskdibs.test", "Mo R.", UserRole.MANAGER);
+        teams.saveAndFlush(new Team("Design", user(otherManager)));
+        long root = person("root@deskdibs.test", "Root A.", UserRole.ADMIN);
+
+        mockMvc.perform(authed(get("/api/reservations/teams"), dana))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].name").value("Platform"));
+
+        mockMvc.perform(authed(get("/api/reservations/teams"), root))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2));
+
+        mockMvc.perform(authed(get("/api/reservations/teams"), erin))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("listing holds returns only the ones the caller could actually release")
+    void listReturnsOnlyHoldsTheCallerMayAct0n() throws Exception {
+        long otherManager = person("mo@deskdibs.test", "Mo R.", UserRole.MANAGER);
+        long designTeam = teams.saveAndFlush(new Team("Design", user(otherManager))).getId();
+
+        mockMvc.perform(reservationRequest(dana, platformTeamId, List.of(seatId("R4-A1")), TODAY, TODAY))
+                .andExpect(status().isOk());
+        mockMvc.perform(reservationRequest(otherManager, designTeam, List.of(seatId("R4-A2")), TODAY, TODAY))
+                .andExpect(status().isOk());
+
+        // Every row Dana gets back is one the delete endpoint would accept from her.
+        mockMvc.perform(authed(get("/api/reservations"), dana))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].teamName").value("Platform"))
+                .andExpect(jsonPath("$[0].seatLabel").value("R4-A1"));
+    }
+
+    @Test
+    @DisplayName("a hold for today reports itself released once the morning cut-off has passed")
+    void aHoldForTodayStopsBeingEnforcedAfterItsReleaseTime() throws Exception {
+        mockMvc.perform(reservationRequest(dana, platformTeamId, List.of(seatId("R4-A1")), TODAY, TODAY))
+                .andExpect(status().isOk());
+
+        // 09:00 — before the 10:00 team-block release, so the block is holding its desk.
+        mockMvc.perform(authed(get("/api/reservations"), dana))
+                .andExpect(jsonPath("$[0].enforcedNow").value(true));
+
+        clock.setTo(ZonedDateTime.of(TODAY, LocalTime.of(10, 1), office));
+
+        // One minute later the hold still exists but holds nothing — the soft release, with no job
+        // and no state change. The UI needs to say so, or the manager sees a hold here and no hold
+        // on the map and concludes the feature is broken.
+        mockMvc.perform(authed(get("/api/reservations"), dana))
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].enforcedNow").value(false));
+    }
+
+    @Test
+    @DisplayName("a hold that has already ended is not listed as something to release")
+    void listOmitsHoldsThatHaveAlreadyEnded() throws Exception {
+        mockMvc.perform(reservationRequest(dana, platformTeamId,
+                        List.of(seatId("R4-A1")), TODAY.minusDays(5), TODAY.minusDays(3)))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(authed(get("/api/reservations"), dana))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
     }
 
     // ─── Fixture ─────────────────────────────────────────────────────────────────

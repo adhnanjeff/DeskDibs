@@ -2,6 +2,7 @@ package com.deskdibs.team;
 
 import com.deskdibs.booking.Booking;
 import com.deskdibs.booking.BookingRepository;
+import com.deskdibs.common.OfficeClock;
 import com.deskdibs.common.OfficeProperties;
 import com.deskdibs.seat.Seat;
 import com.deskdibs.seat.SeatRepository;
@@ -30,11 +31,15 @@ import java.util.List;
  * genuinely malformed request (an unknown team or seat id, or an inverted date range), each of
  * which fails the whole call and leaves nothing held, via the surrounding {@code @Transactional}.
  *
- * <h2>Object-level authorization on release</h2>
+ * <h2>Object-level authorization on both ends</h2>
  * {@code @PreAuthorize("hasAnyRole('MANAGER','ADMIN')")} on the controller proves only that the
- * caller holds one of those roles; it says nothing about whether they may touch <em>this</em> hold.
- * {@link #release} answers that per object, exactly as {@code BookingService#requireMayAct} does for
- * bookings: the hold's creator, the manager of the team it is for, or an admin.
+ * caller holds one of those roles; it says nothing about <em>which</em> team or <em>which</em> hold
+ * they may touch. Both questions are answered here, per object, exactly as
+ * {@code BookingService#requireMayAct} does for bookings.
+ *
+ * <p>{@link #create} requires the caller to manage the team they are holding seats for (or be an
+ * admin) — otherwise any manager could take a block of desks in another department's name.
+ * {@link #release} requires the hold's creator, the manager of the team it is for, or an admin.
  */
 @Service
 public class ReservationService {
@@ -45,19 +50,22 @@ public class ReservationService {
     private final BookingRepository bookings;
     private final AppUserRepository users;
     private final OfficeProperties office;
+    private final OfficeClock officeClock;
 
     public ReservationService(TeamRepository teams,
                               SeatRepository seats,
                               SeatReservationRepository reservations,
                               BookingRepository bookings,
                               AppUserRepository users,
-                              OfficeProperties office) {
+                              OfficeProperties office,
+                              OfficeClock officeClock) {
         this.teams = teams;
         this.seats = seats;
         this.reservations = reservations;
         this.bookings = bookings;
         this.users = users;
         this.office = office;
+        this.officeClock = officeClock;
     }
 
     /**
@@ -66,6 +74,7 @@ public class ReservationService {
      * (or the configured default when {@code null}).
      *
      * @throws TeamNotFoundException             no team with that id
+     * @throws TeamAccessDeniedException         the caller does not manage that team and is not an admin
      * @throws ReservationSeatNotFoundException  one of the requested seat ids does not exist
      * @throws InvalidReservationRangeException  {@code endDate} is before {@code startDate}
      */
@@ -77,7 +86,14 @@ public class ReservationService {
         }
 
         Team team = teams.findById(teamId).orElseThrow(() -> new TeamNotFoundException(teamId));
-        AppUser actor = users.getReferenceById(actingUserId);
+        AppUser actor = users.findById(actingUserId).orElseThrow();
+
+        // Holding desks is a mutation on somebody else's team, so the role alone is not enough:
+        // this manager must be *this* team's manager.
+        if (actor.getRole() != UserRole.ADMIN && !managesTeam(team, actingUserId)) {
+            throw new TeamAccessDeniedException(teamId, actingUserId);
+        }
+
         LocalTime effectiveReleaseAtTime = releaseAtTime == null ? office.teamBlockReleaseTime() : releaseAtTime;
 
         List<ReservationReport.HeldSeat> held = new ArrayList<>();
@@ -103,6 +119,64 @@ public class ReservationService {
 
         return new ReservationReport(team.getId(), team.getName(), startDate, endDate, held, unavailable);
     }
+
+    // ─── Reading ─────────────────────────────────────────────────────────────────
+
+    /**
+     * The teams this caller may hold seats for: every team for an admin, and only the teams they
+     * manage for a manager.
+     *
+     * <p>The same rule {@link #create} enforces, which is the point — the UI offers exactly the
+     * choices the API will accept, so a manager is never shown a team that would be refused. The
+     * check still lives in {@code create}: this list is a convenience, never the control.
+     */
+    @Transactional(readOnly = true)
+    public List<TeamView> teamsFor(long actingUserId) {
+        AppUser actor = users.findById(actingUserId).orElseThrow();
+        List<Team> visible = actor.getRole() == UserRole.ADMIN
+                ? teams.findAllByOrderByNameAsc()
+                : teams.findByManagerIdOrderByNameAsc(actingUserId);
+        return visible.stream().map(TeamView::of).toList();
+    }
+
+    /**
+     * Live and upcoming holds this caller may act on, so the UI can list a block and release it.
+     *
+     * <p>Filtered by the same three-way test {@link #release} applies per hold — creator, team
+     * manager, or admin — so every row returned is one the caller can actually release.
+     */
+    @Transactional(readOnly = true)
+    public List<ReservationView> upcomingFor(long actingUserId, LocalDate from) {
+        AppUser actor = users.findById(actingUserId).orElseThrow();
+        boolean admin = actor.getRole() == UserRole.ADMIN;
+
+        LocalDate today = officeClock.today();
+
+        return reservations.findNotEndedBeforeFetchAll(from).stream()
+                .filter(r -> admin
+                        || managesTeam(r.getTeam(), actingUserId)
+                        || (r.getCreatedBy() != null && r.getCreatedBy().getId().longValue() == actingUserId))
+                .map(r -> ReservationView.of(r, isEnforcedNow(r, today)))
+                .toList();
+    }
+
+    /**
+     * Is this hold holding anything right now?
+     *
+     * <p>Mirrors {@code SeatMapService#firstEnforcedHold} exactly, so the manager's list and the
+     * floor map can never tell different stories about the same hold. A block for a future day is
+     * enforced (it has not reached its release time yet); a block for today is enforced only until
+     * that time passes; a block whose last day is behind us holds nothing.
+     */
+    private boolean isEnforcedNow(SeatReservation hold, LocalDate today) {
+        if (hold.getEndDate().isBefore(today)) {
+            return false;
+        }
+        LocalDate effectiveDay = hold.getStartDate().isAfter(today) ? hold.getStartDate() : today;
+        return officeClock.isBefore(effectiveDay, hold.getReleaseAtTime());
+    }
+
+    // ─── Release ─────────────────────────────────────────────────────────────────
 
     /**
      * Release a hold early. Deleted outright rather than soft-cancelled: unlike a booking,

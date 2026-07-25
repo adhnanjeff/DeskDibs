@@ -7,9 +7,11 @@ interface SeatClusterProps {
   label: string;
   center: { x: number; y: number };
   seats: SeatTileModel[];
-  selectedSeatId: number | null;
+  /** Every picked seat. Booking passes one; a team hold passes a whole block. */
+  selectedSeatIds: ReadonlySet<number>;
   locatedSeatId: number | null;
   animatingSeat: { seatId: number; kind: SeatAnimation } | null;
+  canSelect?: (seat: SeatTileModel) => boolean;
   onSelect: (seat: SeatTileModel) => void;
   onHover: (seat: SeatTileModel | null, el: HTMLElement | null) => void;
 }
@@ -24,9 +26,10 @@ export function SeatCluster({
   label,
   center,
   seats,
-  selectedSeatId,
+  selectedSeatIds,
   locatedSeatId,
   animatingSeat,
+  canSelect,
   onSelect,
   onHover,
 }: SeatClusterProps) {
@@ -56,8 +59,9 @@ export function SeatCluster({
           >
             <SeatTile
               seat={cell.seat}
-              selected={cell.seat.seatId === selectedSeatId}
+              selected={selectedSeatIds.has(cell.seat.seatId)}
               located={cell.seat.seatId === locatedSeatId}
+              canSelect={canSelect}
               animation={
                 animatingSeat?.seatId === cell.seat.seatId ? animatingSeat.kind : null
               }

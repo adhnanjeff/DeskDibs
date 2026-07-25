@@ -1,9 +1,10 @@
 name: Backend CI
 
-# Backend only for now. A frontend workflow lands with the React app; at that
-# point add `paths:` filters to both — not before. A path filter on a required
-# status check silently blocks any PR that doesn't touch the filtered directory,
-# because the check never reports at all.
+# Runs on every PR, with no `paths:` filter — see the same note in
+# frontend-ci.yml. A path filter on a check that is required for merge never
+# reports at all for a PR that doesn't touch the filtered directory, so the PR
+# blocks forever on a status that will never arrive. Two cheap jobs beat one
+# silent failure mode.
 on:
   pull_request:
     branches: [main]

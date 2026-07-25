@@ -1,33 +1,63 @@
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faUsers } from '@fortawesome/free-solid-svg-icons';
+import { useState } from 'react';
+import type { components } from '../api/schema';
+import { useSeatMap } from '../hooks/useSeatMap';
+import { useAuth } from '../auth/AuthContext';
+import { SeatMapSkeleton } from '../components/seatmap/SeatMapSkeleton';
+import { ErrorFallback } from '../components/ErrorFallback';
+import { SectionErrorBoundary } from '../components/SectionErrorBoundary';
+import { ReservationWorkspace } from '../components/reservations/ReservationWorkspace';
+import { ReservationReportCard } from '../components/reservations/ReservationReportCard';
 
-/**
- * Proves role-gated routing works end to end (nav link + route only reach
- * MANAGER/ADMIN — see RequireRole). The actual reservation-management UI
- * is Phase 7's job.
- */
+type ReservationReport = components['schemas']['ReservationReport'];
+
+function ReservationsContent() {
+  const { user } = useAuth();
+  const { data, isPending, isError, error, refetch } = useSeatMap();
+  const [report, setReport] = useState<ReservationReport | null>(null);
+
+  if (isPending) return <SeatMapSkeleton />;
+
+  if (isError) {
+    return (
+      <ErrorFallback
+        title="Couldn't load the floor"
+        message={error instanceof Error ? error.message : undefined}
+        onRetry={() => void refetch()}
+      />
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      {report && <ReservationReportCard report={report} />}
+      <ReservationWorkspace
+        seatMap={data}
+        currentUserId={user?.id ?? null}
+        onReport={setReport}
+      />
+    </div>
+  );
+}
+
 export function ReservationsPage() {
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="text-xl font-semibold text-slate-900">Reservations</h1>
-        <p className="text-sm text-slate-500">
-          Hold seats for your team ahead of a busy day.
+      <div className="mb-4">
+        <p className="eyebrow text-xs text-ink/50">Team blocks</p>
+        <h1 className="text-3xl font-bold uppercase tracking-tight text-ink sm:text-4xl">
+          Reservations
+        </h1>
+        <p className="mt-1 max-w-2xl text-sm font-semibold text-ink/60">
+          Hold desks for your team ahead of a busy day. Anything already booked is left exactly as
+          it is — you&rsquo;ll be told who has it, never have it taken from them.
         </p>
       </div>
-      <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-slate-300 bg-slate-50 p-10 text-center">
-        <FontAwesomeIcon
-          icon={faUsers}
-          className="h-8 w-8 text-slate-400"
-          aria-hidden="true"
-        />
-        <p className="font-medium text-slate-700">Coming in Phase 7</p>
-        <p className="max-w-md text-sm text-slate-500">
-          Team reservation management — holding blocks of seats, seeing
-          partial-success reports, and releasing holds early — lands in a later
-          phase.
-        </p>
-      </div>
+      <SectionErrorBoundary
+        title="Reservations hit a snag"
+        message="Something failed while rendering this page — try reloading this section."
+      >
+        <ReservationsContent />
+      </SectionErrorBoundary>
     </div>
   );
 }
