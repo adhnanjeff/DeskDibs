@@ -10,6 +10,8 @@ import { FloorMap } from './FloorMap';
 import { FloorSidebar } from './FloorSidebar';
 import { FloorLegend } from './FloorLegend';
 import { SeatListFallback } from './SeatListFallback';
+import { Floor3DOverlay } from '../floor3d/Floor3DOverlay';
+import { preloadFloor3D } from '../floor3d/lazyScene';
 
 type SeatMapResponse = components['schemas']['SeatMapResponse'];
 type SeatMapSeat = components['schemas']['SeatMapSeat'];
@@ -48,6 +50,7 @@ export function FloorWorkspace({ seatMap, currentUserId }: FloorWorkspaceProps) 
     null,
   );
   const [view, setView] = useState<'map' | 'list'>('map');
+  const [show3D, setShow3D] = useState(false);
   const [announcement, setAnnouncement] = useState('');
   const [bookError, setBookError] = useState<string | null>(null);
 
@@ -79,6 +82,9 @@ export function FloorWorkspace({ seatMap, currentUserId }: FloorWorkspaceProps) 
     if (!seat.actionable) return;
     setBookError(null);
     setSelectedSeat(seat);
+    // Picking a seat is the only route to the 3D view, so start fetching its
+    // chunk now — the download overlaps the pause before the user clicks.
+    preloadFloor3D();
   }, []);
 
   const setPending = useCallback((seatId: number | null) => {
@@ -150,6 +156,7 @@ export function FloorWorkspace({ seatMap, currentUserId }: FloorWorkspaceProps) 
             activeFloor={activeFloor}
             selectedSeat={selectedSeat}
             onBook={handleBook}
+            onView3D={() => setShow3D(true)}
             isBooking={claim.isPending}
             bookError={bookError}
           />
@@ -176,6 +183,20 @@ export function FloorWorkspace({ seatMap, currentUserId }: FloorWorkspaceProps) 
           )}
         </div>
       </div>
+
+      {show3D && (
+        <Floor3DOverlay
+          seatMap={seatMap}
+          currentUserId={currentUserId}
+          pendingSeatId={pendingSeatId}
+          selectedSeat={selectedSeat}
+          onSelectSeat={handleSelect}
+          onBook={handleBook}
+          isBooking={claim.isPending}
+          bookError={bookError}
+          onClose={() => setShow3D(false)}
+        />
+      )}
 
       <div aria-live="polite" className="sr-only">
         {announcement}

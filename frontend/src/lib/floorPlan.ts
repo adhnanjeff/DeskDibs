@@ -43,6 +43,10 @@ export const CANVAS = { w: 1240, h: 554 } as const;
 export const SEAT_TILE = 26;
 export const SEAT_GAP = 4;
 
+/** The pod's name plate: its height and the gap below it, above the seat grid. */
+export const POD_LABEL_H = 15;
+export const POD_LABEL_GAP = 4;
+
 export const ROOM_FILL: Record<RoomCategory, string> = {
   reception: 'var(--color-room-reception)',
   meeting: 'var(--color-room-meeting)',

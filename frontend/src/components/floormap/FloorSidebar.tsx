@@ -1,5 +1,5 @@
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faLayerGroup, faTriangleExclamation } from '@fortawesome/free-solid-svg-icons';
+import { faCube, faLayerGroup, faTriangleExclamation } from '@fortawesome/free-solid-svg-icons';
 import type { SeatTileModel } from '../../lib/seatModel';
 import { SEAT_STATE_META } from '../../lib/seatState';
 
@@ -8,6 +8,7 @@ interface FloorSidebarProps {
   activeFloor: string | null;
   selectedSeat: SeatTileModel | null;
   onBook: () => void;
+  onView3D: () => void;
   isBooking: boolean;
   bookError: string | null;
 }
@@ -18,6 +19,7 @@ export function FloorSidebar({
   activeFloor,
   selectedSeat,
   onBook,
+  onView3D,
   isBooking,
   bookError,
 }: FloorSidebarProps) {
@@ -71,10 +73,12 @@ export function FloorSidebar({
 
         <button
           type="button"
-          disabled
-          aria-disabled="true"
-          className="mt-3 flex w-full items-center justify-center border-2 border-ink px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-ink/45 opacity-80"
+          onClick={onView3D}
+          disabled={!selectedSeat}
+          title={selectedSeat ? undefined : 'Pick a seat on the map first'}
+          className="mt-3 flex w-full items-center justify-center gap-2 border-2 border-ink bg-paper px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-ink shadow-brutal-sm transition-transform hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none disabled:hover:translate-y-0"
         >
+          <FontAwesomeIcon icon={faCube} className="h-3.5 w-3.5" aria-hidden="true" />
           View in 3D
         </button>
 
