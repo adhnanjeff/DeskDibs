@@ -1,0 +1,374 @@
+{
+  "info": {
+    "name": "DeskDibs API",
+    "description": "Backend through Phase 4 (REST + realtime). Import the DeskDibs Local environment alongside this collection. Run the Auth folder first — its requests populate {{employeeToken}}, {{managerToken}} and {{adminToken}} automatically via test scripts.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "exec": [
+          "// bookingDate is always set to today, computed fresh on every request —",
+          "// never a fixed calendar date, which would drift outside the 14-day booking",
+          "// window (and away from 'today', which check-in specifically requires) within days.",
+          "const today = new Date().toISOString().slice(0, 10);",
+          "pm.environment.set('bookingDate', today);"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Auth",
+      "item": [
+        {
+          "name": "Login as Employee",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"employee@deskdibs.local\",\n  \"password\": \"devpassword123\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('login succeeded', () => pm.response.to.have.status(200));",
+                  "pm.environment.set('employeeToken', body.accessToken);",
+                  "console.log('Employee id:', body.user.id, 'role:', body.user.role);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login as Manager",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"manager@deskdibs.local\",\n  \"password\": \"devpassword123\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('login succeeded', () => pm.response.to.have.status(200));",
+                  "pm.environment.set('managerToken', body.accessToken);",
+                  "console.log('Manager id:', body.user.id, 'role:', body.user.role);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login as Admin",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@deskdibs.local\",\n  \"password\": \"devpassword123\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('login succeeded', () => pm.response.to.have.status(200));",
+                  "pm.environment.set('adminToken', body.accessToken);",
+                  "console.log('Admin id:', body.user.id, 'role:', body.user.role);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Who am I (employee)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{employeeToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/auth/me", "host": ["{{baseUrl}}"], "path": ["api", "auth", "me"] }
+          }
+        },
+        {
+          "name": "Who am I - no token (expect 401)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/auth/me", "host": ["{{baseUrl}}"], "path": ["api", "auth", "me"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": ["pm.test('401 with no token', () => pm.response.to.have.status(401));"] }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2. Seat Map",
+      "item": [
+        {
+          "name": "Get seat map for a date",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{employeeToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/seatmap?date={{bookingDate}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "seatmap"],
+              "query": [{ "key": "date", "value": "{{bookingDate}}" }]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "let count = 0;",
+                  "body.floors.forEach(f => f.zones.forEach(z => z.tables.forEach(t => count += t.seats.length)));",
+                  "pm.test('all 110 seats present', () => pm.expect(count).to.eql(110));",
+                  "const firstAvailable = [].concat(...[].concat(...body.floors.map(f => f.zones)).map(z => [].concat(...z.tables.map(t => t.seats)))).find(s => s.state === 'AVAILABLE');",
+                  "if (firstAvailable) { pm.environment.set('seatId', firstAvailable.seatId); console.log('Picked free seat:', firstAvailable.seatLabel, firstAvailable.seatId); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get seat map (default = today)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{employeeToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/seatmap", "host": ["{{baseUrl}}"], "path": ["api", "seatmap"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Bookings",
+      "item": [
+        {
+          "name": "Claim a seat (as employee)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{employeeToken}}" },
+              { "key": "Idempotency-Key", "value": "{{$guid}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"seatId\": {{seatId}},\n  \"date\": \"{{bookingDate}}\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/bookings", "host": ["{{baseUrl}}"], "path": ["api", "bookings"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "pm.environment.set('bookingId', body.id);",
+                  "console.log('Booking id:', body.id, 'seat:', body.seatLabel);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Claim the SAME seat as manager (expect 409, names the winner)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{managerToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"seatId\": {{seatId}},\n  \"date\": \"{{bookingDate}}\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/bookings", "host": ["{{baseUrl}}"], "path": ["api", "bookings"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('409 Conflict', () => pm.response.to.have.status(409));",
+                  "const body = pm.response.json();",
+                  "pm.test('names who holds it', () => pm.expect(body.details.takenByDisplayName).to.eql('Dev Employee'));",
+                  "console.log(body);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get my bookings",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{employeeToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/bookings/me", "host": ["{{baseUrl}}"], "path": ["api", "bookings", "me"] }
+          }
+        },
+        {
+          "name": "Check in",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{employeeToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/bookings/{{bookingId}}/check-in",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "bookings", "{{bookingId}}", "check-in"]
+            }
+          }
+        },
+        {
+          "name": "Cancel as a stranger (expect 403)",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{managerToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/bookings/{{bookingId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "bookings", "{{bookingId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": ["pm.test('403 for a non-owner', () => pm.response.to.have.status(403));"] }
+            }
+          ]
+        },
+        {
+          "name": "Cancel (as owner)",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{employeeToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/bookings/{{bookingId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "bookings", "{{bookingId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": ["pm.test('200 OK, CANCELLED', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().status).to.eql('CANCELLED'); });"] }
+            }
+          ]
+        },
+        {
+          "name": "Claim an out-of-window date (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{employeeToken}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"seatId\": {{seatId}},\n  \"date\": \"2020-01-01\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/bookings", "host": ["{{baseUrl}}"], "path": ["api", "bookings"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": ["pm.test('400 with allowed range', () => { pm.response.to.have.status(400); pm.expect(pm.response.json().details.earliestAllowed).to.exist; });"] }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "4. Reservations (Manager/Admin only)",
+      "item": [
+        {
+          "name": "Employee tries to create a reservation (expect 403)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{employeeToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"teamId\": {{teamId}},\n  \"seatIds\": [{{seatId}}],\n  \"startDate\": \"{{bookingDate}}\",\n  \"endDate\": \"{{bookingDate}}\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/reservations", "host": ["{{baseUrl}}"], "path": ["api", "reservations"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": ["pm.test('403 for a non-manager', () => pm.response.to.have.status(403));"] }
+            }
+          ]
+        },
+        {
+          "name": "Manager creates a reservation",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{managerToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"teamId\": {{teamId}},\n  \"seatIds\": [{{seatId}}],\n  \"startDate\": \"{{bookingDate}}\",\n  \"endDate\": \"{{bookingDate}}\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/reservations", "host": ["{{baseUrl}}"], "path": ["api", "reservations"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "if (body.held && body.held.length) { pm.environment.set('reservationId', body.held[0].reservationId); }",
+                  "console.log(body);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Release the reservation",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{managerToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/reservations/{{reservationId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "reservations", "{{reservationId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": ["pm.test('204 No Content', () => pm.response.to.have.status(204));"] }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

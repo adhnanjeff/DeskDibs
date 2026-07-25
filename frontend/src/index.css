@@ -1,0 +1,202 @@
+@import 'tailwindcss';
+
+/*
+ * DeskDibs design tokens — neo-brutalist Bauhaus.
+ *
+ * THESIS: the floor map is the interface. The office is drawn as a Bauhaus
+ * blueprint — warm paper, near-black ink, thick hairline borders and HARD
+ * offset shadows (no blur). Bauhaus primaries carry function, never mood:
+ * yellow = selected/active, red = the one primary action, and flat category
+ * hues label the rooms. Seat state is colour + a distinct square-tile
+ * treatment + icon + text — colour is never the only signal.
+ *
+ * Type is a two-family system: Space Grotesk (display + UI, uppercase with
+ * tracking for structure) and IBM Plex Mono (seat codes, counts, timestamps —
+ * coordinate data rendered on a monospace grid).
+ */
+@theme {
+  --font-sans:
+    'Space Grotesk', ui-sans-serif, system-ui, -apple-system, 'Segoe UI',
+    sans-serif;
+  --font-mono:
+    'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+
+  /* ── Base: paper + ink ─────────────────────────────────────────────── */
+  --color-paper: #f4f1e9; /* warm cream canvas */
+  --color-paper-dim: #eae4d6; /* recessed panel */
+  --color-ink: #141414; /* near-black: borders + text */
+  --color-ink-soft: #57544c; /* secondary text */
+
+  /* ── Bauhaus primaries as function ─────────────────────────────────── */
+  --color-bauhaus-yellow: #f5c518; /* selected / active */
+  --color-bauhaus-yellow-deep: #d8aa00;
+  --color-bauhaus-red: #e5372a; /* primary action (Book Now) */
+  --color-bauhaus-red-deep: #c02a20;
+  --color-bauhaus-blue: #2b6ce5; /* wayfinding accent / "yours" */
+
+  /* ── Room category fills (flat, black-bordered) ────────────────────── */
+  --color-room-reception: #cfe3f7; /* light blue */
+  --color-room-meeting: #cfe9cf; /* green */
+  --color-room-cabin: #ddd5f2; /* lavender */
+  --color-room-pantry: #efe2c7; /* beige */
+  --color-room-server: #cbb9ea; /* purple */
+  --color-room-collab: #f7e79a; /* soft yellow */
+  --color-room-utility: #e6e2d8; /* light grey */
+  --color-room-workspace: #ffffff; /* white */
+
+  /* ── Seat-state palette — tile fill + icon + label together ────────── */
+  --color-seat-available: #e9e2d0; /* cream tile — faChair */
+  --color-seat-occupied: #141414; /* solid ink — faUser (white glyph) */
+  --color-seat-yours: #2b6ce5; /* blue — faCircleUser */
+  --color-seat-selected: #f5c518; /* yellow — selection */
+  --color-seat-team-reserved: #b9a4e6; /* lavender — faUsers */
+  --color-seat-checked-in: #1f9d6b; /* green — faUserCheck */
+  --color-seat-disabled: #b7b3a8; /* grey — faBan */
+  --color-seat-pending: #f5c518; /* yellow (animated) — faHourglassHalf */
+
+  /* Legacy tint tokens kept until the seat layer lands (SeatStateBadge). */
+  --color-seat-available-tint: #f5f1e6;
+  --color-seat-yours-tint: #e7effc;
+  --color-seat-occupied-tint: #ececeb;
+  --color-seat-team-reserved-tint: #efeafa;
+  --color-seat-checked-in-tint: #e6f6ee;
+  --color-seat-disabled-tint: #efede7;
+  --color-seat-pending-tint: #fdf6da;
+
+  /* Brand tokens retained for the auth screens until they are re-skinned. */
+  --color-brand-500: #2b6ce5;
+  --color-brand-600: #1f57c4;
+
+  /* ── Hard offset shadows — the neo-brutalist signature ─────────────── */
+  --shadow-brutal: 4px 4px 0 0 var(--color-ink);
+  --shadow-brutal-sm: 2px 2px 0 0 var(--color-ink);
+  --shadow-brutal-lg: 6px 6px 0 0 var(--color-ink);
+}
+
+html {
+  color-scheme: light;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  background-color: var(--color-paper);
+  color: var(--color-ink);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* The page body never scrolls horizontally, at any viewport. */
+html,
+body,
+#root {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+#root {
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Bauhaus focus: a solid ink ring, never removed. */
+:focus-visible {
+  outline: 3px solid var(--color-ink);
+  outline-offset: 2px;
+}
+
+/* An uppercase, letter-spaced label — structure, not decoration. */
+.eyebrow {
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Skeleton shimmer: a single light sweep across an outline while loading. */
+@keyframes skeleton-shimmer-sweep {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.skeleton-shimmer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.55),
+    transparent
+  );
+  animation: skeleton-shimmer-sweep 1.6s ease-in-out infinite;
+}
+
+/* Seat claimed by you — a single green ripple outward, then settle. */
+@keyframes seat-claim-ripple {
+  0% {
+    box-shadow: 0 0 0 0 rgba(31, 157, 107, 0.55);
+  }
+  100% {
+    box-shadow: 0 0 0 14px rgba(31, 157, 107, 0);
+  }
+}
+
+/* Seat lost to a concurrent claim — a short, sharp horizontal shake. */
+@keyframes seat-lose-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-3px);
+  }
+  40% {
+    transform: translateX(3px);
+  }
+  60% {
+    transform: translateX(-2px);
+  }
+  80% {
+    transform: translateX(2px);
+  }
+}
+
+/* Seat changed by someone else (a live broadcast) — a quick settle-in. */
+@keyframes seat-appear {
+  0% {
+    opacity: 0.25;
+    transform: scale(0.88);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.seat-claimed {
+  animation: seat-claim-ripple 0.5s ease-out 1;
+}
+
+.seat-lost {
+  animation: seat-lose-shake 0.35s ease-in-out 1;
+}
+
+.seat-updated {
+  animation: seat-appear 0.4s ease-out 1;
+}
