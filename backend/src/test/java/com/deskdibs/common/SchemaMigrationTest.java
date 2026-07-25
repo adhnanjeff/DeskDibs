@@ -9,6 +9,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.IntStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -34,15 +35,24 @@ class SchemaMigrationTest extends AbstractPostgresIntegrationTest {
     void everyMigrationAppliesFromScratchAndReportsSuccess() {
         MigrationInfo[] applied = flyway.info().applied();
 
-        assertThat(applied)
-                .as("V1, V2 and V3 should have run")
-                .hasSize(3);
+        // Deliberately not pinned to a migration count. Flyway is forward-only, so every new
+        // migration would fail a hardcoded number — training whoever adds one to bump the
+        // assertion without reading it. What must stay true is the shape: an unbroken run of
+        // versions from 1, every one of them successful, with `current` at the end of it.
+        assertThat(applied).as("the schema is built by migrations, not by ddl-auto").isNotEmpty();
+
         assertThat(applied)
                 .extracting(info -> info.getVersion().toString())
-                .containsExactly("1", "2", "3");
+                .as("versions run in order with no gaps")
+                .containsExactlyElementsOf(
+                        IntStream.rangeClosed(1, applied.length)
+                                .mapToObj(String::valueOf)
+                                .toList());
+
         assertThat(Arrays.stream(applied).map(MigrationInfo::getState))
                 .allMatch(MigrationState.SUCCESS::equals);
-        assertThat(flyway.info().current().getVersion().toString()).isEqualTo("3");
+        assertThat(flyway.info().current().getVersion().toString())
+                .isEqualTo(String.valueOf(applied.length));
     }
 
     @Test

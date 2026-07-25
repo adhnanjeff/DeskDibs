@@ -27,6 +27,12 @@ spring:
       minimum-idle: 2
 
 deskdibs:
+  # No background release fires during the suite. NoShowReleaseServiceTest drives the
+  # service directly against a movable clock, which proves the same behaviour without a
+  # trigger that could release rows another test is mid-way through asserting on.
+  scheduling:
+    enabled: false
+
   auth:
     local:
       # Startup seeding is off across the suite. The Testcontainers database is shared by

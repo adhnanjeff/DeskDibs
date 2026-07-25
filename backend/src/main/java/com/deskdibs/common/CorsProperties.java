@@ -16,7 +16,7 @@ import java.util.List;
  * dev server's own origin, and a real deployment sets the env var to its actual frontend origin(s)
  * rather than reaching for a wildcard to make CORS errors go away.
  *
- * @param allowedOrigins exact origins (scheme + host + port), e.g. {@code http://localhost:5173}
+ * @param allowedOrigins exact origins (scheme + host + port), e.g. {@code http://localhost:5174}
  */
 @ConfigurationProperties(prefix = "deskdibs.cors")
 @Validated

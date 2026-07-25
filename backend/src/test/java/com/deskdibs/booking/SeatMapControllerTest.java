@@ -46,7 +46,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  *
  * <p>Two things matter beyond "does it return the right JSON". First, whether it stays one round
  * trip as booking count grows — {@link SeatMapService}'s javadoc promises three bounded queries
- * regardless of how many of the 110 seats are occupied, and the only way to hold that promise
+ * regardless of how many of the 102 seats are occupied, and the only way to hold that promise
  * honestly is to count the actual queries Hibernate issues, not just eyeball the code. Second,
  * whether the state a seat renders as matches what the booking and reservation tables actually
  * say, including the occupant's name, which is the one piece of data every other test in this class
@@ -112,7 +112,7 @@ class SeatMapControllerTest extends AbstractAuthWebTest {
     }
 
     @Test
-    @DisplayName("the map covers all 110 seats and names the occupant of a taken one")
+    @DisplayName("the map covers all 102 seats and names the occupant of a taken one")
     void theMapCoversAllSeatsAndNamesTheOccupant() throws Exception {
         long bob = person("bob@deskdibs.test", "Bob T.", UserRole.EMPLOYEE);
         bookings.saveAndFlush(new Booking(seat("R1-A1"), user(bob), TODAY, null));
@@ -127,10 +127,10 @@ class SeatMapControllerTest extends AbstractAuthWebTest {
         response.path("floors").forEach(floor -> floor.path("zones").forEach(
                 zone -> zone.path("tables").forEach(table -> table.path("seats").forEach(allSeats::add))));
 
-        assertThat(allSeats).as("every seeded seat is in the map").hasSize(110);
+        assertThat(allSeats).as("every seeded seat is in the map").hasSize(102);
         assertThat(allSeats.stream().map(s -> s.path("seatLabel").asText()).distinct().count())
                 .as("no seat appears twice")
-                .isEqualTo(110);
+                .isEqualTo(102);
 
         JsonNode bobsSeat = allSeats.stream().filter(s -> s.path("seatLabel").asText().equals("R1-A1"))
                 .findFirst().orElseThrow();
@@ -172,7 +172,7 @@ class SeatMapControllerTest extends AbstractAuthWebTest {
 
     /**
      * The claim in {@link SeatMapService}'s javadoc, held to account: three queries regardless of
-     * how many of the 110 seats have a booking. Zero bookings and twenty bookings must cost the
+     * how many of the 102 seats have a booking. Zero bookings and twenty bookings must cost the
      * database the same number of round trips, or the "one HTTP round trip, not one per seat"
      * promise is just a comment.
      */

@@ -2,6 +2,7 @@ package com.deskdibs.common;
 
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
@@ -23,9 +24,12 @@ import java.time.ZoneId;
  * @param bookingHorizonDays   how far ahead a seat may be claimed. {@code 0} would mean today only.
  * @param teamBlockReleaseTime default release time for a new team hold; an individual
  *                             {@code seat_reservation} row carries its own, which wins.
- * @param noShowReleaseTime    when an un-checked-in booking goes back into the pool. Read by the
- *                             scheduled job in a later phase; declared here so the whole block
- *                             binds and validates as one.
+ * @param noShowReleaseTime    when an un-checked-in booking goes back into the pool, read by
+ *                             {@code NoShowReleaseScheduler}.
+ * @param noShowReleaseDays    which days that release runs on, as a cron day-of-week field
+ *                             ({@code MON-FRI}). PLAN.md §12 still lists the office's working days
+ *                             as unconfirmed, so this stays configuration rather than a hardcoded
+ *                             Monday-to-Friday assumption baked into a job.
  */
 @ConfigurationProperties(prefix = "deskdibs.office")
 @Validated
@@ -37,5 +41,7 @@ public record OfficeProperties(
 
         @NotNull LocalTime teamBlockReleaseTime,
 
-        @NotNull LocalTime noShowReleaseTime) {
+        @NotNull LocalTime noShowReleaseTime,
+
+        @NotBlank String noShowReleaseDays) {
 }
