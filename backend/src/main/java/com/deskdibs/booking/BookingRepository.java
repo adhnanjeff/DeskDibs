@@ -113,6 +113,33 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
                                                             @Param("from") LocalDate from,
                                                             @Param("to") LocalDate to);
 
+    // ─── Booking horizon (the date strip) ────────────────────────────────────────
+
+    /**
+     * How many desks are claimed on each day in a range, as {@code [date, count]} rows.
+     *
+     * <p>One grouped query for the whole 14-day horizon rather than fourteen seat-map builds. The
+     * strip only needs a number per day; building the full floor for each of them to count it would
+     * be roughly a hundred times the work for the same answer.
+     */
+    @Query("""
+           select b.bookingDate, count(b)
+             from Booking b
+            where b.bookingDate between :from and :to and b.status = 'ACTIVE'
+            group by b.bookingDate
+           """)
+    List<Object[]> countActiveByDateBetween(@Param("from") LocalDate from, @Param("to") LocalDate to);
+
+    /** The caller's own live bookings across the horizon, so the strip can mark their days. */
+    @Query("""
+           select b from Booking b
+           join fetch b.seat
+            where b.user.id = :userId and b.bookingDate between :from and :to and b.status = 'ACTIVE'
+           """)
+    List<Booking> findMyActiveBookingsBetweenFetchSeat(@Param("userId") Long userId,
+                                                       @Param("from") LocalDate from,
+                                                       @Param("to") LocalDate to);
+
     // ─── No-show release ─────────────────────────────────────────────────────────
 
     /**

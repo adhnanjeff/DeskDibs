@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../api/client';
 import { getErrorMessage } from '../api/errors';
 import type { components } from '../api/schema';
+import { SEAT_HORIZON_KEY } from './useSeatMapHorizon';
 
 type CreateReservationRequest = components['schemas']['CreateReservationRequest'];
 
@@ -39,6 +40,7 @@ function useInvalidateReservations() {
     void queryClient.invalidateQueries({ queryKey: ['reservations'] });
     // Holding or releasing a desk changes what the floor shows for it.
     void queryClient.invalidateQueries({ queryKey: ['seatmap'] });
+    void queryClient.invalidateQueries({ queryKey: SEAT_HORIZON_KEY });
   };
 }
 

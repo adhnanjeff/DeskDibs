@@ -3,12 +3,16 @@ package com.deskdibs.common;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
 
+import java.time.DayOfWeek;
+import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
+import java.util.Set;
 
 /**
  * The office's rules about time, bound from the {@code deskdibs.office} block of
@@ -26,6 +30,9 @@ import java.time.ZoneId;
  *                             {@code seat_reservation} row carries its own, which wins.
  * @param noShowReleaseTime    when an un-checked-in booking goes back into the pool, read by
  *                             {@code NoShowReleaseScheduler}.
+ * @param workingDays          the days the office is open, so a desk cannot be booked for a day
+ *                             nobody is there. Enforced by the booking rules, not only shown in
+ *                             the date strip.
  * @param noShowReleaseDays    which days that release runs on, as a cron day-of-week field
  *                             ({@code MON-FRI}). PLAN.md §12 still lists the office's working days
  *                             as unconfirmed, so this stays configuration rather than a hardcoded
@@ -43,5 +50,18 @@ public record OfficeProperties(
 
         @NotNull LocalTime noShowReleaseTime,
 
-        @NotBlank String noShowReleaseDays) {
+        @NotBlank String noShowReleaseDays,
+
+        @NotEmpty Set<DayOfWeek> workingDays) {
+
+    /**
+     * Is the office open on {@code date}?
+     *
+     * <p>Asked by the booking rules, not only by the UI: a weekend the interface greys out is a
+     * weekend a scripted request can still book. The set is configuration because PLAN.md §12 lists
+     * the office's working days as unconfirmed, and offices in some regions do not run Mon–Fri.
+     */
+    public boolean isWorkingDay(LocalDate date) {
+        return workingDays.contains(date.getDayOfWeek());
+    }
 }

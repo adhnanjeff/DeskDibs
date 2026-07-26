@@ -81,6 +81,19 @@
         </dependency>
 
         <!--
+          Phase 9: per-user token-bucket rate limiting on booking mutations (PLAN.md §5 #14).
+          `-core` only: the distributed backends (Hazelcast, Ignite, Redis) exist to share buckets
+          across instances, and PLAN.md §6 puts the whole system on one Spring Boot instance on
+          purpose. In-memory buckets held in a Caffeine cache are the matching choice — adding a
+          cache tier here would be the architecture the plan explicitly rejects.
+        -->
+        <dependency>
+            <groupId>com.bucket4j</groupId>
+            <artifactId>bucket4j-core</artifactId>
+            <version>8.10.1</version>
+        </dependency>
+
+        <!--
           Phase 4: live seat-map updates. Brings spring-websocket + spring-messaging (STOMP).
           The STOMP CONNECT frame is authenticated with the same JwtDecoder/AuthProvider as the
           REST API (see realtime/StompAuthChannelInterceptor) rather than the raw HTTP handshake,

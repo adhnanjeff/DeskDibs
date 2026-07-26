@@ -9,5 +9,8 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./src/test/setup.ts'],
+    // `e2e/` belongs to Playwright, which brings its own `test`/`expect`. Left in, Vitest picks
+    // the specs up and fails on imports that only make sense inside a browser runner.
+    exclude: ['node_modules/**', 'dist/**', 'e2e/**'],
   },
 });

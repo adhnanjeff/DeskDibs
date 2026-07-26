@@ -1,5 +1,6 @@
 package com.deskdibs.auth;
 
+import com.deskdibs.booking.BookingRateLimitFilter;
 import jakarta.servlet.DispatcherType;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -11,6 +12,7 @@ import org.springframework.security.config.annotation.web.configurers.RequestCac
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.access.intercept.AuthorizationFilter;
 import org.springframework.web.cors.CorsConfigurationSource;
 
 /**
@@ -69,7 +71,8 @@ public class SecurityConfig {
                                                       JwtPrincipalConverter principalConverter,
                                                       JsonAuthenticationEntryPoint entryPoint,
                                                       JsonAccessDeniedHandler accessDeniedHandler,
-                                                      CorsConfigurationSource corsConfigurationSource)
+                                                      CorsConfigurationSource corsConfigurationSource,
+                                                      BookingRateLimitFilter bookingRateLimitFilter)
             throws Exception {
 
         http
@@ -110,7 +113,12 @@ public class SecurityConfig {
                         .accessDeniedHandler(accessDeniedHandler)
                         .jwt(jwt -> jwt
                                 .decoder(jwtDecoder)
-                                .jwtAuthenticationConverter(principalConverter)));
+                                .jwtAuthenticationConverter(principalConverter)))
+
+                // After authorization, so the bucket can be keyed by the authenticated user rather
+                // than by IP — a whole office behind one NAT shares an address, and throttling that
+                // would punish a floor for one impatient person.
+                .addFilterAfter(bookingRateLimitFilter, AuthorizationFilter.class);
 
         return http.build();
     }

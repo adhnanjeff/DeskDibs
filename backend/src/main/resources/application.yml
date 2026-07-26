@@ -72,10 +72,21 @@ deskdibs:
     timezone: ${OFFICE_TIMEZONE:Asia/Kolkata}
     booking-horizon-days: ${BOOKING_HORIZON_DAYS:14}
     team-block-release-time: ${TEAM_BLOCK_RELEASE_TIME:10:00}
+    # Days the office is open. A desk cannot be booked for any other day — enforced by the
+    # booking rules, not merely greyed out in the date strip.
+    working-days: ${OFFICE_WORKING_DAYS:MONDAY,TUESDAY,WEDNESDAY,THURSDAY,FRIDAY}
     no-show-release-time: ${NO_SHOW_RELEASE_TIME:11:00}
     # Cron day-of-week field for the no-show release. Mon-Fri until IT confirms the
     # office's working days (PLAN.md §12).
     no-show-release-days: ${NO_SHOW_RELEASE_DAYS:MON-FRI}
+
+  # Per-user throttle on booking mutations (PLAN.md §5 #14). A politeness limit, never a
+  # correctness one — the anti-double-booking guarantee is the partial unique index and
+  # nothing else, so turning this off cannot produce a double booking.
+  rate-limit:
+    enabled: ${RATE_LIMIT_ENABLED:true}
+    booking-ops-per-minute: ${RATE_LIMIT_BOOKING_OPS_PER_MINUTE:30}
+    bucket-ttl: ${RATE_LIMIT_BUCKET_TTL:PT10M}
 
   # The no-show release is the only scheduled work in the system. Switched off across
   # the test suite, which drives NoShowReleaseService directly against a movable clock

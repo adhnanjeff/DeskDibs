@@ -124,6 +124,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/seatmap/horizon": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * How full each bookable day is, for the date strip
+         * @description Today through the configured booking horizon, one entry per day: how many desks are in service, how many are claimed, and which desk you already hold that day. Answered in three queries for the whole range rather than one seat map per day.
+         */
+        get: operations["horizon"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/reservations/teams": {
         parameters: {
             query?: never;
@@ -397,6 +417,24 @@ export interface components {
             name?: string;
             tables?: components["schemas"]["TableMapView"][];
         };
+        DayAvailabilityView: {
+            /** Format: date */
+            date?: string;
+            /**
+             * Format: int32
+             * @example 102
+             */
+            bookableSeats?: number;
+            /**
+             * Format: int32
+             * @example 43
+             */
+            bookedSeats?: number;
+            /** @example R5-A1 */
+            yourSeatLabel?: string | null;
+            /** @example true */
+            bookable?: boolean;
+        };
         ReservationView: {
             /** Format: int64 */
             id?: number;
@@ -641,6 +679,26 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["SeatMapResponse"];
+                };
+            };
+        };
+    };
+    horizon: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One entry per bookable day, today first. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["DayAvailabilityView"][];
                 };
             };
         };

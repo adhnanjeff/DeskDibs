@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../api/client';
 import { getErrorMessage } from '../api/errors';
+import { SEAT_HORIZON_KEY } from './useSeatMapHorizon';
 
 /**
  * The two things you can do to a booking you already hold.
@@ -18,6 +19,7 @@ function useInvalidateBookingViews() {
   return () => {
     void queryClient.invalidateQueries({ queryKey: ['bookings'] });
     void queryClient.invalidateQueries({ queryKey: ['seatmap'] });
+    void queryClient.invalidateQueries({ queryKey: SEAT_HORIZON_KEY });
   };
 }
 

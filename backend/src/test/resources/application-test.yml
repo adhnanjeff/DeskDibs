@@ -27,6 +27,13 @@ spring:
       minimum-idle: 2
 
 deskdibs:
+  # Off across the suite. The headline concurrency test fires 150 simultaneous claims on purpose —
+  # that is the behaviour under test, not abuse — and a throttle would turn it into a test of the
+  # throttle. BookingRateLimitTest switches it back on for itself via @TestPropertySource.
+  rate-limit:
+    enabled: false
+    booking-ops-per-minute: 30
+
   # No background release fires during the suite. NoShowReleaseServiceTest drives the
   # service directly against a movable clock, which proves the same behaviour without a
   # trigger that could release rows another test is mid-way through asserting on.

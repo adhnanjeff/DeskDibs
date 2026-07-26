@@ -1,6 +1,8 @@
 package com.deskdibs.booking;
 
+import com.deskdibs.auth.CurrentUser;
 import com.deskdibs.common.OfficeClock;
+import com.deskdibs.common.OfficeProperties;
 import com.deskdibs.seat.SeatMapResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -13,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDate;
+import java.util.List;
 
 /**
  * {@code GET /api/seatmap} — the endpoint the whole product hangs off.
@@ -29,10 +32,17 @@ public class SeatMapController {
 
     private final SeatMapService seatMapService;
     private final OfficeClock officeClock;
+    private final OfficeProperties office;
+    private final CurrentUser currentUser;
 
-    public SeatMapController(SeatMapService seatMapService, OfficeClock officeClock) {
+    public SeatMapController(SeatMapService seatMapService,
+                             OfficeClock officeClock,
+                             OfficeProperties office,
+                             CurrentUser currentUser) {
         this.seatMapService = seatMapService;
         this.officeClock = officeClock;
+        this.office = office;
+        this.currentUser = currentUser;
     }
 
     @GetMapping("/seatmap")
@@ -48,5 +58,19 @@ public class SeatMapController {
             @Parameter(description = "ISO date (yyyy-MM-dd). Defaults to today in the office timezone.")
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         return seatMapService.buildMap(date == null ? officeClock.today() : date);
+    }
+
+    @GetMapping("/seatmap/horizon")
+    @Operation(
+            summary = "How full each bookable day is, for the date strip",
+            description = """
+                    Today through the configured booking horizon, one entry per day: how many desks \
+                    are in service, how many are claimed, and which desk you already hold that day. \
+                    Answered in three queries for the whole range rather than one seat map per day.""")
+    @ApiResponse(responseCode = "200", description = "One entry per bookable day, today first.")
+    public List<DayAvailabilityView> horizon() {
+        LocalDate today = officeClock.today();
+        return seatMapService.availabilityHorizon(
+                currentUser.requireId(), today, today.plusDays(office.bookingHorizonDays()));
     }
 }

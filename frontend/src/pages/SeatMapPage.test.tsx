@@ -24,12 +24,14 @@ describe('SeatMapPage', () => {
   it('renders each seat with its state in the accessible name, not colour alone', async () => {
     renderWithProviders(<SeatMapPage />);
 
-    // Available seats invite a click; occupied and disabled ones say why they don't.
+    // Available seats invite a click; taken and disabled ones say why they don't. "Booked, not
+    // in" rather than "occupied": it names the one thing you'd want to know about a taken desk,
+    // which is whether the person has actually turned up.
     expect(
       await screen.findByRole('button', { name: /seat L1-A1: available/i }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: /seat L1-A2: occupied — Dev Employee/i }),
+      screen.getByRole('button', { name: /seat L1-A2: booked, not in — Dev Employee/i }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole('button', { name: /seat R1-A1: disabled/i }),

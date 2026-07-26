@@ -1,6 +1,7 @@
 package com.deskdibs.booking;
 
 import com.deskdibs.common.OfficeClock;
+import com.deskdibs.common.OfficeProperties;
 import com.deskdibs.layout.DeskTable;
 import com.deskdibs.layout.Floor;
 import com.deskdibs.layout.Zone;
@@ -11,6 +12,7 @@ import com.deskdibs.seat.SeatMapView;
 import com.deskdibs.seat.SeatReservation;
 import com.deskdibs.seat.SeatReservationRepository;
 import com.deskdibs.seat.SeatRepository;
+import com.deskdibs.seat.SeatStatus;
 import com.deskdibs.seat.TableMapView;
 import com.deskdibs.seat.ZoneMapView;
 import org.springframework.stereotype.Service;
@@ -49,15 +51,50 @@ public class SeatMapService {
     private final BookingRepository bookings;
     private final SeatReservationRepository reservations;
     private final OfficeClock officeClock;
+    private final OfficeProperties office;
 
     public SeatMapService(SeatRepository seats,
                           BookingRepository bookings,
                           SeatReservationRepository reservations,
-                          OfficeClock officeClock) {
+                          OfficeClock officeClock,
+                          OfficeProperties office) {
         this.seats = seats;
         this.bookings = bookings;
         this.reservations = reservations;
         this.officeClock = officeClock;
+        this.office = office;
+    }
+
+    /**
+     * How full each day of the booking horizon is, for the date strip.
+     *
+     * <p>Three queries for the whole horizon, not one seat map per day: the number of bookable
+     * desks (constant across the range), one grouped count of bookings per day, and the caller's own
+     * bookings. Team holds are deliberately not subtracted — a held desk is still a desk somebody
+     * could sit at once the block releases, and counting it as unavailable would make a quiet day
+     * look busy.
+     */
+    @Transactional(readOnly = true)
+    public List<DayAvailabilityView> availabilityHorizon(long userId, LocalDate from, LocalDate to) {
+        int bookableSeats = (int) seats.countByStatus(SeatStatus.ACTIVE);
+
+        Map<LocalDate, Long> bookedByDate = bookings.countActiveByDateBetween(from, to).stream()
+                .collect(Collectors.toMap(row -> (LocalDate) row[0], row -> (Long) row[1]));
+
+        Map<LocalDate, String> mySeatByDate = bookings
+                .findMyActiveBookingsBetweenFetchSeat(userId, from, to).stream()
+                .collect(Collectors.toMap(Booking::getBookingDate, b -> b.getSeat().getLabel(), (a, b) -> a));
+
+        List<DayAvailabilityView> horizon = new ArrayList<>();
+        for (LocalDate day = from; !day.isAfter(to); day = day.plusDays(1)) {
+            horizon.add(new DayAvailabilityView(
+                    day,
+                    bookableSeats,
+                    bookedByDate.getOrDefault(day, 0L).intValue(),
+                    mySeatByDate.get(day),
+                    office.isWorkingDay(day)));
+        }
+        return horizon;
     }
 
     /** The whole map for one date, grouped floor → zone → table → seat in stable render order. */
