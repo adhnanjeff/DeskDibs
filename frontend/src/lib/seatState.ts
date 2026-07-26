@@ -79,7 +79,9 @@ export const SEAT_STATE_META: Record<SeatDisplayState, SeatStateMeta> = {
     textClass: 'text-ink',
   },
   OCCUPIED: {
-    label: 'Occupied',
+    // Named for what it tells you to expect, not for the raw API state: these are exactly the
+    // desks the no-show release will hand back at the cut-off.
+    label: 'Booked, not in',
     icon: faUser,
     fill: 'var(--color-seat-occupied)',
     glyph: 'paper',
@@ -134,6 +136,14 @@ export const SEAT_STATE_META: Record<SeatDisplayState, SeatStateMeta> = {
  * Derives the richer display state from the raw API state plus the viewer's
  * own identity. `SELECTED` and `PENDING` are applied by the UI on top of this,
  * never returned here.
+ *
+ * <p><b>Check-in is a property of the seat, not of who is looking at it.</b> It used to render
+ * green only on your own desk, so a colleague who had turned up looked exactly like one who had
+ * not — and since the no-show release only takes back the ones who have not, the map appeared to
+ * be ignoring its own cut-off. Now the two are told apart for everybody: green means somebody is
+ * actually sitting there, plain occupied means booked-but-not-arrived, which is precisely the set
+ * the 11:00 release will reclaim. `YOURS` keeps its meaning for the case it is useful in — your
+ * desk, before you have checked into it.
  */
 export function toSeatDisplayState(
   apiState: 'AVAILABLE' | 'OCCUPIED' | 'TEAM_RESERVED' | 'DISABLED',
@@ -150,7 +160,7 @@ export function toSeatDisplayState(
     options.occupantUserId != null &&
     options.occupantUserId === options.currentUserId;
 
-  if (options.checkedIn) return isMine ? 'CHECKED_IN' : 'OCCUPIED';
+  if (options.checkedIn) return 'CHECKED_IN';
   if (isMine) return 'YOURS';
   return 'OCCUPIED';
 }

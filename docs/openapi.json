@@ -321,6 +321,31 @@
                 }
             }
         },
+        "/api/seatmap/horizon": {
+            "get": {
+                "tags": [
+                    "Seat map"
+                ],
+                "summary": "How full each bookable day is, for the date strip",
+                "description": "Today through the configured booking horizon, one entry per day: how many desks are in service, how many are claimed, and which desk you already hold that day. Answered in three queries for the whole range rather than one seat map per day.",
+                "operationId": "horizon",
+                "responses": {
+                    "200": {
+                        "description": "One entry per bookable day, today first.",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/DayAvailabilityView"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/reservations/teams": {
             "get": {
                 "tags": [
@@ -906,6 +931,36 @@
                         "items": {
                             "$ref": "#/components/schemas/TableMapView"
                         }
+                    }
+                }
+            },
+            "DayAvailabilityView": {
+                "type": "object",
+                "properties": {
+                    "date": {
+                        "type": "string",
+                        "format": "date"
+                    },
+                    "bookableSeats": {
+                        "type": "integer",
+                        "format": "int32",
+                        "example": 102
+                    },
+                    "bookedSeats": {
+                        "type": "integer",
+                        "format": "int32",
+                        "example": 43
+                    },
+                    "yourSeatLabel": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "example": "R5-A1"
+                    },
+                    "bookable": {
+                        "type": "boolean",
+                        "example": true
                     }
                 }
             },

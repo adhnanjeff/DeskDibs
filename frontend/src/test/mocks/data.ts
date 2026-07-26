@@ -6,6 +6,7 @@ import type { components } from '../../api/schema';
 // type instead of non-null-asserting at every call site.
 type CurrentUser = Required<components['schemas']['CurrentUserResponse']>;
 type SeatMapResponse = components['schemas']['SeatMapResponse'];
+type DayAvailability = components['schemas']['DayAvailabilityView'];
 type BookingResponse = components['schemas']['BookingResponse'];
 
 export const EMPLOYEE_USER: CurrentUser = {
@@ -108,4 +109,16 @@ export const MOCK_BOOKINGS: BookingResponse[] = [
     bookingDate: '2026-07-24',
     status: 'ACTIVE',
   },
+];
+
+/**
+ * The date strip's horizon. Deliberately small — three days is enough to prove the strip renders
+ * a row, marks the day you already hold a desk, and shows a fill bar, without fourteen fixtures
+ * to keep in step with MOCK_SEATMAP.
+ */
+export const MOCK_HORIZON: DayAvailability[] = [
+  { date: '2026-07-24', bookableSeats: 102, bookedSeats: 2, yourSeatLabel: 'L1-A2', bookable: true },
+  { date: '2026-07-25', bookableSeats: 102, bookedSeats: 51, yourSeatLabel: null, bookable: true },
+  // A Saturday: present in the strip, but shut.
+  { date: '2026-07-26', bookableSeats: 102, bookedSeats: 0, yourSeatLabel: null, bookable: false },
 ];

@@ -16,6 +16,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
+    "//test:e2e": "Needs a running backend (mvn spring-boot:run) — see playwright.config.ts.",
+    "test:e2e": "playwright test",
     "generate:api": "openapi-typescript ../docs/openapi.json -o ./src/api/schema.ts"
   },
   "dependencies": {
@@ -37,6 +39,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",
+    "@playwright/test": "^1.62.0",
     "@tailwindcss/vite": "^4.3.3",
     "@testing-library/jest-dom": "^7.0.0",
     "@testing-library/react": "^16.3.2",

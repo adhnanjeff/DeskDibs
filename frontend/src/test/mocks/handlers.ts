@@ -6,6 +6,7 @@ import {
   MANAGER_TOKEN,
   MANAGER_USER,
   MOCK_BOOKINGS,
+  MOCK_HORIZON,
   MOCK_SEATMAP,
 } from './data';
 
@@ -81,6 +82,10 @@ export const handlers = [
   }),
 
   http.get(url('/api/seatmap'), () => HttpResponse.json(MOCK_SEATMAP)),
+
+  // The date strip's data. Registered before nothing in particular — msw matches in order, and
+  // this path is distinct from /api/seatmap, so order does not matter here.
+  http.get(url('/api/seatmap/horizon'), () => HttpResponse.json(MOCK_HORIZON)),
 
   http.get(url('/api/bookings/me'), () => HttpResponse.json(MOCK_BOOKINGS)),
 ];

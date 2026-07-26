@@ -36,5 +36,8 @@ public enum AuthErrorCode {
     ACCESS_DENIED,
 
     /** The request body failed validation. */
-    VALIDATION_FAILED
+    VALIDATION_FAILED,
+
+    /** Too many booking mutations from one account in too short a window (PLAN.md §5 #14). */
+    RATE_LIMITED
 }

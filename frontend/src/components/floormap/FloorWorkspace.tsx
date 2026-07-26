@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'motion/react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faMap, faList, type IconDefinition } from '@fortawesome/free-solid-svg-icons';
@@ -23,6 +23,8 @@ type SeatMapSeat = components['schemas']['SeatMapSeat'];
 interface FloorWorkspaceProps {
   seatMap: SeatMapResponse;
   currentUserId: number | null;
+  /** Reports whether live broadcasts are arriving, so the page can fall back to polling. */
+  onLiveStatusChange?: (connected: boolean) => void;
 }
 
 function countSeats(map: SeatMapResponse): number {
@@ -42,7 +44,11 @@ function countSeats(map: SeatMapResponse): number {
  * seat, Book Now), and the floor map / list. Owns the selection, the claim, the
  * win/lose motion, and the live-update announcements.
  */
-export function FloorWorkspace({ seatMap, currentUserId }: FloorWorkspaceProps) {
+export function FloorWorkspace({
+  seatMap,
+  currentUserId,
+  onLiveStatusChange,
+}: FloorWorkspaceProps) {
   const date = seatMap.date ?? '';
   const floors = (seatMap.floors ?? []).map((floor) => floor.name ?? '').filter(Boolean);
   const activeFloor = floors[0] ?? null;
@@ -89,7 +95,11 @@ export function FloorWorkspace({ seatMap, currentUserId }: FloorWorkspaceProps) 
     [flash],
   );
 
-  useSeatMapLive(date, { onSeatChange: handleLiveChange });
+  const live = useSeatMapLive(date, { onSeatChange: handleLiveChange });
+
+  useEffect(() => {
+    onLiveStatusChange?.(live.connected);
+  }, [live.connected, onLiveStatusChange]);
 
   const handleSelect = useCallback((seat: SeatTileModel) => {
     if (!seat.actionable) return;
@@ -223,7 +233,10 @@ export function FloorWorkspace({ seatMap, currentUserId }: FloorWorkspaceProps) 
         />
       )}
 
-      <div aria-live="polite" className="sr-only">
+      {/* `role="status"` as well as aria-live: the role is what actually gives this an accessible
+          identity, and without it assistive tech (and anything else querying by role) sees an
+          anonymous div that merely happens to announce. */}
+      <div role="status" aria-live="polite" className="sr-only">
         {announcement}
       </div>
     </motion.div>

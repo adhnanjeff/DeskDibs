@@ -48,9 +48,12 @@ function SeatHoverCard({ seat, x, y }: { seat: SeatTileModel; x: number; y: numb
         <p className="font-mono text-xs font-bold uppercase tracking-wider text-ink">
           {seat.seatLabel}
         </p>
-        <p className="text-[11px] font-semibold text-ink/75">
-          {seat.occupantName ?? meta.label}
-        </p>
+        {seat.occupantName && (
+          <p className="text-[11px] font-semibold text-ink/75">{seat.occupantName}</p>
+        )}
+        {/* The state always shows, even when the seat is somebody's — "Dev Employee" alone
+            doesn't say whether they have actually turned up. */}
+        <p className="font-mono text-[10px] uppercase tracking-wider text-ink/55">{meta.label}</p>
       </div>
     </div>
   );

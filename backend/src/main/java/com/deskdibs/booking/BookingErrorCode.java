@@ -12,6 +12,9 @@ public enum BookingErrorCode {
     /** Requested date is before today or past the booking horizon. */
     DATE_OUTSIDE_BOOKING_WINDOW,
 
+    /** The office is closed that day (weekend, or whatever `working-days` says). */
+    DATE_NOT_A_WORKING_DAY,
+
     /** The seat exists but is DISABLED or BROKEN. */
     SEAT_NOT_BOOKABLE,
 

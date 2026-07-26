@@ -252,6 +252,11 @@ public class BookingService {
         if (date.isBefore(earliest) || date.isAfter(latest)) {
             throw new DateOutsideBookingWindowException(date, earliest, latest);
         }
+        // A day nobody is in the office is not a day a desk can be held. Checked server-side
+        // because the date strip only *offers* working days — it cannot enforce them.
+        if (!office.isWorkingDay(date)) {
+            throw new DateNotAWorkingDayException(date);
+        }
     }
 
     /** Rule 2: the seat itself has to be in the pool. */

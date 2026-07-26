@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../api/client';
 import { getErrorMessage } from '../api/errors';
+import { SEAT_HORIZON_KEY } from './useSeatMapHorizon';
 
 /**
  * A failed claim. `conflict` is the one the UI treats specially: a 409 means
@@ -51,6 +52,9 @@ export function useClaimSeat(date: string) {
     },
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: ['seatmap'] });
+      // The horizon lives under its own key now, so it needs naming explicitly — the day's
+      // fill bar and "you have a desk here" tick both just changed.
+      void queryClient.invalidateQueries({ queryKey: SEAT_HORIZON_KEY });
     },
   });
 }

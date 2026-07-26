@@ -9,6 +9,7 @@ import com.deskdibs.booking.BookingNotActiveException;
 import com.deskdibs.booking.BookingNotFoundException;
 import com.deskdibs.booking.BookingUserNotFoundException;
 import com.deskdibs.booking.CheckInNotForTodayException;
+import com.deskdibs.booking.DateNotAWorkingDayException;
 import com.deskdibs.booking.DateOutsideBookingWindowException;
 import com.deskdibs.booking.IdempotencyKeyConflictException;
 import com.deskdibs.booking.SeatAlreadyBookedException;
@@ -105,7 +106,7 @@ public class AuthExceptionHandler {
 
     private static HttpStatus bookingStatus(BookingErrorCode code) {
         return switch (code) {
-            case DATE_OUTSIDE_BOOKING_WINDOW -> HttpStatus.BAD_REQUEST;
+            case DATE_OUTSIDE_BOOKING_WINDOW, DATE_NOT_A_WORKING_DAY -> HttpStatus.BAD_REQUEST;
             case SEAT_RESERVED_FOR_TEAM, BOOKING_ACCESS_DENIED -> HttpStatus.FORBIDDEN;
             case BOOKING_NOT_FOUND, SEAT_NOT_FOUND, USER_NOT_FOUND -> HttpStatus.NOT_FOUND;
             case SEAT_ALREADY_BOOKED, ALREADY_BOOKED_THAT_DAY, SEAT_NOT_BOOKABLE, BOOKING_NOT_ACTIVE,
@@ -116,6 +117,7 @@ public class AuthExceptionHandler {
     private static String bookingMessage(BookingErrorCode code) {
         return switch (code) {
             case DATE_OUTSIDE_BOOKING_WINDOW -> "The requested date is outside the allowed booking window.";
+            case DATE_NOT_A_WORKING_DAY -> "The office is closed on that day.";
             case SEAT_NOT_BOOKABLE -> "This seat is not available for booking.";
             case SEAT_RESERVED_FOR_TEAM -> "This seat is reserved for a team until it releases.";
             case SEAT_ALREADY_BOOKED -> "This seat is already booked for that date.";
@@ -162,6 +164,9 @@ public class AuthExceptionHandler {
                     "teamId", e.getTeamId(),
                     "teamName", e.getTeamName(),
                     "releaseAtTime", e.getReleaseAtTime());
+        }
+        if (refusal instanceof DateNotAWorkingDayException e) {
+            return details("date", e.getDate().toString(), "dayOfWeek", e.getDayOfWeek());
         }
         if (refusal instanceof DateOutsideBookingWindowException e) {
             return details(
