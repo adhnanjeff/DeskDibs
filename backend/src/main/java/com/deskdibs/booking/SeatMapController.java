@@ -2,7 +2,6 @@ package com.deskdibs.booking;
 
 import com.deskdibs.auth.CurrentUser;
 import com.deskdibs.common.OfficeClock;
-import com.deskdibs.common.OfficeProperties;
 import com.deskdibs.seat.SeatMapResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -32,16 +31,13 @@ public class SeatMapController {
 
     private final SeatMapService seatMapService;
     private final OfficeClock officeClock;
-    private final OfficeProperties office;
     private final CurrentUser currentUser;
 
     public SeatMapController(SeatMapService seatMapService,
                              OfficeClock officeClock,
-                             OfficeProperties office,
                              CurrentUser currentUser) {
         this.seatMapService = seatMapService;
         this.officeClock = officeClock;
-        this.office = office;
         this.currentUser = currentUser;
     }
 
@@ -67,10 +63,9 @@ public class SeatMapController {
                     Today through the configured booking horizon, one entry per day: how many desks \
                     are in service, how many are claimed, and which desk you already hold that day. \
                     Answered in three queries for the whole range rather than one seat map per day.""")
-    @ApiResponse(responseCode = "200", description = "One entry per bookable day, today first.")
+    @ApiResponse(responseCode = "200",
+            description = "One entry per bookable day. Starts at today, or tomorrow past the same-day cut-off.")
     public List<DayAvailabilityView> horizon() {
-        LocalDate today = officeClock.today();
-        return seatMapService.availabilityHorizon(
-                currentUser.requireId(), today, today.plusDays(office.bookingHorizonDays()));
+        return seatMapService.bookableHorizon(currentUser.requireId());
     }
 }

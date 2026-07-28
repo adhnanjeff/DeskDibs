@@ -7,6 +7,14 @@ export function seatMapTopic(date: string): string {
 }
 
 /**
+ * Live API telemetry for the admin view. Administrators only — the server refuses the SUBSCRIBE
+ * frame for anyone else, so calling this from a non-admin screen fails closed rather than leaking.
+ */
+export function adminTelemetryTopic(): string {
+  return '/topic/admin/telemetry';
+}
+
+/**
  * A STOMP client for the backend's raw-WebSocket endpoint (`/ws`, no SockJS).
  * The bearer token rides the STOMP CONNECT frame — the backend authenticates
  * there, not on the WS handshake, because browsers can't attach headers to a

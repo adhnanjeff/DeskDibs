@@ -30,6 +30,10 @@ import java.util.Set;
  *                             {@code seat_reservation} row carries its own, which wins.
  * @param noShowReleaseTime    when an un-checked-in booking goes back into the pool, read by
  *                             {@code NoShowReleaseScheduler}.
+ * @param sameDayCutoffTime    the time of day after which today stops being offered as a bookable
+ *                             day. Past it the working day is underway and the no-show release has
+ *                             already recycled the desks nobody turned up for, so a strip still
+ *                             leading with "Today" is offering a day that has largely gone.
  * @param workingDays          the days the office is open, so a desk cannot be booked for a day
  *                             nobody is there. Enforced by the booking rules, not only shown in
  *                             the date strip.
@@ -49,6 +53,8 @@ public record OfficeProperties(
         @NotNull LocalTime teamBlockReleaseTime,
 
         @NotNull LocalTime noShowReleaseTime,
+
+        @NotNull LocalTime sameDayCutoffTime,
 
         @NotBlank String noShowReleaseDays,
 

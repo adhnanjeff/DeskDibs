@@ -76,6 +76,9 @@ deskdibs:
     # booking rules, not merely greyed out in the date strip.
     working-days: ${OFFICE_WORKING_DAYS:MONDAY,TUESDAY,WEDNESDAY,THURSDAY,FRIDAY}
     no-show-release-time: ${NO_SHOW_RELEASE_TIME:11:00}
+    # After this, the date strip stops offering today: the day is underway and the no-show
+    # release has already handed back the desks nobody claimed. Defaults to the same hour.
+    same-day-cutoff-time: ${SAME_DAY_CUTOFF_TIME:11:00}
     # Cron day-of-week field for the no-show release. Mon-Fri until IT confirms the
     # office's working days (PLAN.md §12).
     no-show-release-days: ${NO_SHOW_RELEASE_DAYS:MON-FRI}

@@ -75,10 +75,14 @@ test.describe('two people, one seat', () => {
     await Promise.all([bookNow(alicesTab), bookNow(bobsTab)]);
 
     // The invariant, straight from the source of truth: one desk, one booking, whoever won.
-    const holder = await holderOf(request, alice.accessToken, bookingDay, seatId);
-    expect(holder, 'somebody should hold the seat after the race').not.toBeNull();
+    //
+    // Polled rather than read once. `bookNow` dispatches a click and returns — which is exactly
+    // what makes the two requests race — so `Promise.all` above resolves when both clicks have
+    // been *sent*, not when either claim has committed. Reading the map immediately after can
+    // therefore catch the moment before the winner's row exists.
+    const holder = await waitForHolderOf(request, alice.accessToken, bookingDay, seatId);
 
-    const winnerName = holder!.name;
+    const winnerName = holder.name;
     const loserName = winnerName === PEOPLE.employee.name ? PEOPLE.manager.name : PEOPLE.employee.name;
     const losingTab = winnerName === PEOPLE.employee.name ? bobsTab : alicesTab;
     const winningTab = winnerName === PEOPLE.employee.name ? alicesTab : bobsTab;
@@ -124,6 +128,29 @@ test.describe('two people, one seat', () => {
     await tab.close();
   });
 });
+
+/**
+ * Waits until somebody holds the seat, then reports who.
+ *
+ * <p>Deliberately not a bare read: the race is dispatched without awaiting either response, so
+ * "has a winner emerged yet" is a question that needs asking more than once. Failing here means no
+ * booking appeared at all within the timeout, which is a real defect — the two claims are supposed
+ * to produce exactly one.
+ */
+async function waitForHolderOf(
+  request: APIRequestContext,
+  token: string,
+  date: string,
+  seatId: number,
+): Promise<{ name: string }> {
+  const deadline = Date.now() + 10_000;
+  while (Date.now() < deadline) {
+    const holder = await holderOf(request, token, date, seatId);
+    if (holder) return holder;
+    await new Promise((resolve) => setTimeout(resolve, 150));
+  }
+  throw new Error(`Nobody held seat ${seatId} on ${date} after the race — expected exactly one winner`);
+}
 
 /**
  * Who actually holds a seat on a day, read from the API rather than inferred from the UI. This is

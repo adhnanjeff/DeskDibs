@@ -104,6 +104,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/users/{id}/active": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Activate or deactivate an account
+         * @description Deactivating refuses the account at login and hands back every desk it still holds from today onward. The response names each booking that was released, so the consequence is visible rather than silent. Reactivating restores access but does not reclaim desks.
+         */
+        patch: operations["setUserActive"];
+        trace?: never;
+    };
+    "/api/admin/seats/{id}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Take a desk out of the pool, or put it back
+         * @description DISABLED or BROKEN withdraws the desk and releases every booking on it from today onward; the affected people see the reason on their own bookings page. ACTIVE returns it to the pool. The seat row is never deleted — booking history survives a floor-plan change.
+         */
+        patch: operations["setSeatStatus"];
+        trace?: never;
+    };
     "/api/seatmap": {
         parameters: {
             query?: never;
@@ -192,6 +232,26 @@ export interface paths {
             cookie?: never;
         };
         get: operations["me"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Everyone on the system
+         * @description Name, email, role and whether the account is live. Never returns credentials.
+         */
+        get: operations["users"];
         put?: never;
         post?: never;
         delete?: never;
@@ -322,7 +382,7 @@ export interface components {
             /** Format: date */
             bookingDate?: string;
             /** @enum {string} */
-            status?: "ACTIVE" | "CANCELLED" | "RELEASED_NO_SHOW";
+            status?: "ACTIVE" | "CANCELLED" | "RELEASED_NO_SHOW" | "RELEASED_USER_DEACTIVATED" | "RELEASED_SEAT_REMOVED";
             /** Format: date-time */
             checkedInAt?: string;
             idempotencyKey?: string;
@@ -362,6 +422,48 @@ export interface components {
             /** Format: int64 */
             expiresInSeconds?: number;
             user?: components["schemas"]["CurrentUserResponse"];
+        };
+        UpdateUserActiveRequest: {
+            active: boolean;
+        };
+        ReleasedBookingView: {
+            /** Format: int64 */
+            bookingId?: number;
+            /** Format: int64 */
+            seatId?: number;
+            seatLabel?: string;
+            /** Format: date */
+            bookingDate?: string;
+            /** Format: int64 */
+            userId?: number;
+            userDisplayName?: string;
+        };
+        UserActivationReport: {
+            /** Format: int64 */
+            userId?: number;
+            displayName?: string;
+            active?: boolean;
+            wasAlreadyInThatState?: boolean;
+            /** Format: int32 */
+            bookingsReleased?: number;
+            released?: components["schemas"]["ReleasedBookingView"][];
+        };
+        UpdateSeatStatusRequest: {
+            /** @enum {string} */
+            status: "ACTIVE" | "DISABLED" | "BROKEN";
+        };
+        SeatStatusChangeReport: {
+            /** Format: int64 */
+            seatId?: number;
+            seatLabel?: string;
+            /** @enum {string} */
+            previousStatus?: "ACTIVE" | "DISABLED" | "BROKEN";
+            /** @enum {string} */
+            status?: "ACTIVE" | "DISABLED" | "BROKEN";
+            wasAlreadyInThatState?: boolean;
+            /** Format: int32 */
+            bookingsReleased?: number;
+            released?: components["schemas"]["ReleasedBookingView"][];
         };
         FloorMapView: {
             /** Format: int64 */
@@ -434,6 +536,8 @@ export interface components {
             yourSeatLabel?: string | null;
             /** @example true */
             bookable?: boolean;
+            /** @example false */
+            today?: boolean;
         };
         ReservationView: {
             /** Format: int64 */
@@ -462,6 +566,15 @@ export interface components {
             name?: string;
             /** @description Display name of the team's manager, when one is set. */
             managerName?: string;
+        };
+        AdminUserView: {
+            /** Format: int64 */
+            id?: number;
+            email?: string;
+            displayName?: string;
+            /** @enum {string} */
+            role?: "EMPLOYEE" | "MANAGER" | "ADMIN";
+            active?: boolean;
         };
     };
     responses: never;
@@ -634,6 +747,33 @@ export interface operations {
                     "*/*": components["schemas"]["BookingResponse"];
                 };
             };
+            /** @description The date is outside the booking window, or not a working day. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["BookingResponse"];
+                };
+            };
+            /** @description The target seat is held for a team the caller is not in. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["BookingResponse"];
+                };
+            };
+            /** @description Somebody else won the target seat. The caller keeps the desk they already had. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["BookingResponse"];
+                };
+            };
         };
     };
     login: {
@@ -656,6 +796,103 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["LoginResponse"];
+                };
+            };
+        };
+    };
+    setUserActive: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateUserActiveRequest"];
+            };
+        };
+        responses: {
+            /** @description What changed, including the bookings released. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["UserActivationReport"];
+                };
+            };
+            /** @description The caller is not an administrator. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["UserActivationReport"];
+                };
+            };
+            /** @description No user with that id. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["UserActivationReport"];
+                };
+            };
+            /** @description An administrator may not deactivate their own account. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["UserActivationReport"];
+                };
+            };
+        };
+    };
+    setSeatStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateSeatStatusRequest"];
+            };
+        };
+        responses: {
+            /** @description What changed, including the bookings released. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SeatStatusChangeReport"];
+                };
+            };
+            /** @description The caller is not an administrator. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SeatStatusChangeReport"];
+                };
+            };
+            /** @description No seat with that id. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SeatStatusChangeReport"];
                 };
             };
         };
@@ -692,7 +929,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description One entry per bookable day, today first. */
+            /** @description One entry per bookable day. Starts at today, or tomorrow past the same-day cut-off. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -764,6 +1001,35 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["CurrentUserResponse"];
+                };
+            };
+        };
+    };
+    users: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The people list. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AdminUserView"][];
+                };
+            };
+            /** @description The caller is not an administrator. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AdminUserView"][];
                 };
             };
         };

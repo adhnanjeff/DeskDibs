@@ -66,6 +66,28 @@ public class SeatMapService {
     }
 
     /**
+     * The date strip's window: every day still worth offering, with the caller's own desks marked.
+     *
+     * <p>Starts at today until the office passes {@code sameDayCutoffTime}, and at tomorrow after
+     * it. Past that hour the working day is underway and the no-show release has already handed
+     * back the desks nobody claimed, so a strip still leading with "Today" offers a day that has
+     * largely gone. The far end does not move with it — passing the cut-off does not earn anyone
+     * an extra day at the end of the horizon.
+     *
+     * <p>The rule lives here rather than in the controller because it is a rule about when the
+     * office considers a day bookable, and because "what is today" is only ever answered by
+     * {@link OfficeClock} — never by the caller's clock.
+     */
+    @Transactional(readOnly = true)
+    public List<DayAvailabilityView> bookableHorizon(long userId) {
+        LocalDate today = officeClock.today();
+        LocalDate first = officeClock.isBefore(today, office.sameDayCutoffTime())
+                ? today
+                : today.plusDays(1);
+        return availabilityHorizon(userId, first, today.plusDays(office.bookingHorizonDays()));
+    }
+
+    /**
      * How full each day of the booking horizon is, for the date strip.
      *
      * <p>Three queries for the whole horizon, not one seat map per day: the number of bookable
@@ -85,6 +107,7 @@ public class SeatMapService {
                 .findMyActiveBookingsBetweenFetchSeat(userId, from, to).stream()
                 .collect(Collectors.toMap(Booking::getBookingDate, b -> b.getSeat().getLabel(), (a, b) -> a));
 
+        LocalDate today = officeClock.today();
         List<DayAvailabilityView> horizon = new ArrayList<>();
         for (LocalDate day = from; !day.isAfter(to); day = day.plusDays(1)) {
             horizon.add(new DayAvailabilityView(
@@ -92,7 +115,8 @@ public class SeatMapService {
                     bookableSeats,
                     bookedByDate.getOrDefault(day, 0L).intValue(),
                     mySeatByDate.get(day),
-                    office.isWorkingDay(day)));
+                    office.isWorkingDay(day),
+                    day.equals(today)));
         }
         return horizon;
     }

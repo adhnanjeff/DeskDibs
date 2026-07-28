@@ -1,5 +1,10 @@
 package com.deskdibs.auth;
 
+import com.deskdibs.admin.AdminErrorCode;
+import com.deskdibs.admin.AdminException;
+import com.deskdibs.admin.AdminSeatNotFoundException;
+import com.deskdibs.admin.AdminUserNotFoundException;
+import com.deskdibs.admin.CannotDeactivateSelfException;
 import com.deskdibs.booking.AlreadyBookedThatDayException;
 import com.deskdibs.booking.AlreadyCheckedInException;
 import com.deskdibs.booking.BookingAccessDeniedException;
@@ -247,6 +252,46 @@ public class AuthExceptionHandler {
         }
         if (refusal instanceof InvalidReservationRangeException e) {
             return details("startDate", e.getStartDate(), "endDate", e.getEndDate());
+        }
+        return null;
+    }
+
+    // ─── Administration domain ────────────────────────────────────────────────────
+
+    @ExceptionHandler(AdminException.class)
+    public ResponseEntity<AuthErrorResponse> handleAdminFailure(AdminException refusal,
+                                                                 HttpServletRequest request) {
+        AdminErrorCode code = refusal.errorCode();
+        return respond(adminStatus(code), code.name(), adminMessage(code), adminDetails(refusal), request);
+    }
+
+    private static HttpStatus adminStatus(AdminErrorCode code) {
+        return switch (code) {
+            case ADMIN_USER_NOT_FOUND, ADMIN_SEAT_NOT_FOUND -> HttpStatus.NOT_FOUND;
+            // A conflict rather than a 403: the caller has every right to use this endpoint, it is
+            // the target of this particular call that cannot be what it is.
+            case CANNOT_DEACTIVATE_SELF -> HttpStatus.CONFLICT;
+        };
+    }
+
+    private static String adminMessage(AdminErrorCode code) {
+        return switch (code) {
+            case ADMIN_USER_NOT_FOUND -> "No user was found with that id.";
+            case ADMIN_SEAT_NOT_FOUND -> "No seat was found with that id.";
+            case CANNOT_DEACTIVATE_SELF ->
+                    "You cannot deactivate your own account. Ask another administrator to do it.";
+        };
+    }
+
+    private static Map<String, Object> adminDetails(AdminException refusal) {
+        if (refusal instanceof AdminUserNotFoundException e) {
+            return details("userId", e.getUserId());
+        }
+        if (refusal instanceof AdminSeatNotFoundException e) {
+            return details("seatId", e.getSeatId());
+        }
+        if (refusal instanceof CannotDeactivateSelfException e) {
+            return details("userId", e.getUserId());
         }
         return null;
     }

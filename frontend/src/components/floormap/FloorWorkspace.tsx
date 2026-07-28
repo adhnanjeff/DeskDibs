@@ -3,7 +3,7 @@ import { motion } from 'motion/react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faMap, faList, type IconDefinition } from '@fortawesome/free-solid-svg-icons';
 import type { components } from '../../api/schema';
-import { useClaimSeat, ClaimError } from '../../hooks/useClaimSeat';
+import { useClaimSeat, useMoveSeat, ClaimError, type ClashingBooking } from '../../hooks/useClaimSeat';
 import { useSeatMapLive } from '../../hooks/useSeatMapLive';
 import type { SeatAnimation, SeatTileModel } from '../../lib/seatModel';
 import { FloorMap } from './FloorMap';
@@ -76,6 +76,22 @@ export function FloorWorkspace({
   const pendingRef = useRef<number | null>(null);
   const animationTimer = useRef<number | null>(null);
   const claim = useClaimSeat(date);
+  const move = useMoveSeat(date);
+
+  // The desk you already hold on this date, learned from a refused claim. Kept while the date
+  // stays put, so a second pick can be offered as a move straight away rather than making you
+  // trip over the same 409 again.
+  //
+  // Stored *with* the date it was learned on and derived back out, rather than cleared by an
+  // effect when the date changes: an offer to give up Tuesday's desk is meaningless the moment
+  // you are looking at Wednesday, and deriving it makes that impossible to get wrong.
+  const [offerFor, setOfferFor] = useState<{ date: string; clash: ClashingBooking } | null>(null);
+  const moveOffer = offerFor?.date === date ? offerFor.clash : null;
+
+  const rememberMoveOffer = useCallback(
+    (clash: ClashingBooking | null) => setOfferFor(clash ? { date, clash } : null),
+    [date],
+  );
 
   const flash = useCallback((seatId: number, kind: SeatAnimation) => {
     setAnimatingSeat({ seatId, kind });
@@ -115,6 +131,48 @@ export function FloorWorkspace({
     setPendingSeatId(seatId);
   }, []);
 
+  /** Shared by claiming and moving: the desk is now yours, so celebrate it the same way. */
+  const onSeatWon = useCallback(
+    (seatId: number, announcement: string) => {
+      setPending(null);
+      setSelectedSeat(null);
+      rememberMoveOffer(null);
+      flash(seatId, 'claimed');
+      setAnnouncement(announcement);
+    },
+    [flash, setPending, rememberMoveOffer],
+  );
+
+  /**
+   * Shared by claiming and moving. Not every 409 is a lost race: the one that says you already
+   * hold a desk that day is an offer to swap, and telling somebody "taken by someone else" when
+   * the seat is sitting there empty is worse than saying nothing.
+   */
+  const onSeatLost = useCallback(
+    (err: unknown, seatId: number, label: string, fallback: string) => {
+      setPending(null);
+      const claimError = err instanceof ClaimError ? err : null;
+
+      if (claimError?.clashesWith) {
+        rememberMoveOffer(claimError.clashesWith);
+        setAnnouncement(
+          `You already have seat ${claimError.clashesWith.seatLabel} that day. You can move to ${label} instead.`,
+        );
+        return;
+      }
+      if (claimError?.conflict) {
+        setSelectedSeat(null);
+        flash(seatId, 'lost');
+        setAnnouncement(`Seat ${label} was just taken by someone else.`);
+        return;
+      }
+      const message = err instanceof Error ? err.message : fallback;
+      setBookError(message);
+      setAnnouncement(message);
+    },
+    [flash, setPending, rememberMoveOffer],
+  );
+
   const handleBook = useCallback(() => {
     if (!selectedSeat?.actionable) return;
     if (!date) {
@@ -126,33 +184,31 @@ export function FloorWorkspace({
     setPending(seatId);
     setBookError(null);
     claim.mutate(seatId, {
-      onSuccess: () => {
-        setPending(null);
-        setSelectedSeat(null);
-        flash(seatId, 'claimed');
-        setAnnouncement(`Seat ${label} booked. It's yours for the day.`);
-      },
-      onError: (err) => {
-        setPending(null);
-        if (err instanceof ClaimError && err.conflict) {
-          setSelectedSeat(null);
-          flash(seatId, 'lost');
-          setAnnouncement(`Seat ${label} was just taken by someone else.`);
-        } else {
-          const message = err instanceof Error ? err.message : 'Could not book that seat.';
-          setBookError(message);
-          setAnnouncement(message);
-        }
-      },
+      onSuccess: () => onSeatWon(seatId, `Seat ${label} booked. It's yours for the day.`),
+      onError: (err) => onSeatLost(err, seatId, label, 'Could not book that seat.'),
     });
-  }, [selectedSeat, date, claim, flash, setPending]);
+  }, [selectedSeat, date, claim, onSeatWon, onSeatLost, setPending]);
+
+  /** PLAN.md §5 #3 — give up the desk you hold that day and take this one, atomically. */
+  const handleMove = useCallback(() => {
+    if (!selectedSeat?.actionable || !moveOffer) return;
+    const seatId = selectedSeat.seatId;
+    const label = selectedSeat.seatLabel;
+    const from = moveOffer.seatLabel;
+    setPending(seatId);
+    setBookError(null);
+    move.mutate(seatId, {
+      onSuccess: () => onSeatWon(seatId, `Moved from seat ${from} to seat ${label}.`),
+      onError: (err) => onSeatLost(err, seatId, label, 'Could not move you to that seat.'),
+    });
+  }, [selectedSeat, moveOffer, move, onSeatWon, onSeatLost, setPending]);
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.25 }}>
       <div className="mb-4 flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="eyebrow text-xs text-ink/50">Floor plan</p>
-          <h1 className="text-3xl font-bold uppercase tracking-tight text-ink sm:text-4xl">
+          <h1 className="ui-title text-ink">
             {activeFloor ?? 'Floor'}
           </h1>
         </div>
@@ -162,13 +218,13 @@ export function FloorWorkspace({
       <OfficeOverview stats={stats} />
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
-        <span className="border-2 border-ink bg-ink px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-wider text-paper">
+        <span className="ui-edge border-line bg-ink px-2.5 py-1 font-mono text-[10px] font-bold ui-label text-paper">
           Finalized layout
         </span>
-        <span className="border-2 border-ink bg-bauhaus-yellow px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-wider text-ink">
+        <span className="ui-edge border-line bg-selected px-2.5 py-1 font-mono text-[10px] font-bold ui-label text-ink">
           {seatCount} workstations
         </span>
-        <div className="ml-auto flex border-2 border-ink shadow-brutal-sm">
+        <div className="ml-auto flex ui-edge border-line shadow-[var(--dd-shadow-sm)]">
           <ViewToggleButton active={view === 'map'} onClick={() => setView('map')} icon={faMap} label="Map" />
           <ViewToggleButton active={view === 'list'} onClick={() => setView('list')} icon={faList} label="List" />
         </div>
@@ -193,6 +249,9 @@ export function FloorWorkspace({
             onView3D={() => setShow3D(true)}
             isBooking={claim.isPending}
             bookError={bookError}
+            moveOffer={moveOffer}
+            onMove={handleMove}
+            isMoving={move.isPending}
           />
         </div>
         <div className="order-1 lg:order-2">
@@ -227,7 +286,7 @@ export function FloorWorkspace({
           selectedSeat={selectedSeat}
           onSelectSeat={handleSelect}
           onBook={handleBook}
-          isBooking={claim.isPending}
+          isBooking={claim.isPending || move.isPending}
           bookError={bookError}
           onClose={() => setShow3D(false)}
         />
@@ -259,7 +318,7 @@ function ViewToggleButton({
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold uppercase tracking-wider ${
+      className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold ui-label ${
         active ? 'bg-ink text-paper' : 'bg-paper text-ink'
       }`}
     >

@@ -12,14 +12,14 @@ export function RoomShell({ room }: { room: Room }) {
   const isPrime = room.id === 'collab-prime';
   const isAlpha = room.id === 'collab-alpha';
 
-  const background = isPrime ? 'var(--color-bauhaus-yellow)' : ROOM_FILL[room.category];
-  const borderColor = isAlpha ? 'var(--color-bauhaus-blue)' : 'var(--color-ink)';
+  const background = isPrime ? 'var(--color-selected)' : ROOM_FILL[room.category];
+  const borderColor = isAlpha ? 'var(--color-info)' : 'var(--color-ink)';
 
   return (
     <div
       aria-hidden="true"
-      className={`absolute ${room.dashed ? 'border-2 border-dashed' : 'border-2'} ${
-        isPrime ? 'shadow-brutal' : ''
+      className={`absolute ${room.dashed ? 'ui-edge border-dashed' : 'ui-edge'} ${
+        isPrime ? 'shadow-[var(--dd-shadow)]' : ''
       }`}
       style={{
         left: room.x,
@@ -31,7 +31,7 @@ export function RoomShell({ room }: { room: Room }) {
       }}
     >
       {isWorkspace ? (
-        <span className="absolute left-2 top-1.5 font-mono text-[9px] font-semibold uppercase tracking-[0.2em] text-ink/35">
+        <span className="absolute left-2 top-1.5 font-mono text-[9px] font-semibold ui-label text-ink/35">
           {room.label}
         </span>
       ) : (
@@ -40,7 +40,7 @@ export function RoomShell({ room }: { room: Room }) {
             isBalcony
               ? 'text-[11px] tracking-[0.45em] text-ink/70'
               : 'text-[9.5px] tracking-wider'
-          } ${isAlpha ? 'text-bauhaus-blue' : 'text-ink/75'}`}
+          } ${isAlpha ? 'text-info' : 'text-ink/75'}`}
         >
           {room.label}
         </span>

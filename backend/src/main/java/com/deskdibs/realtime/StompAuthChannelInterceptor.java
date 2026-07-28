@@ -9,11 +9,15 @@ import org.springframework.messaging.simp.stomp.StompCommand;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.messaging.support.ChannelInterceptor;
 import org.springframework.messaging.support.MessageHeaderAccessor;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtException;
 import org.springframework.stereotype.Component;
+
+import java.security.Principal;
 
 /**
  * Authenticates the STOMP {@code CONNECT} frame with the same {@link JwtDecoder} and
@@ -29,9 +33,18 @@ import org.springframework.stereotype.Component;
  * Occupancy data — colleagues' names against seats — never reaches a socket that has not proven who
  * it is.
  *
- * <p>Only {@code CONNECT} is inspected. Once it succeeds, Spring's STOMP session keeps the
+ * <p>{@code CONNECT} proves identity. Once it succeeds, Spring's STOMP session keeps the
  * {@link org.springframework.security.core.Authentication} this method attaches for the life of the
- * session, so later {@code SUBSCRIBE} frames on the same socket do not need to re-prove anything.
+ * session, so a later {@code SUBSCRIBE} does not need to re-prove <em>who</em> it is.
+ *
+ * <h2>Why SUBSCRIBE is inspected too</h2>
+ * The broker is Spring's simple in-memory broker, which applies no authorization of its own: any
+ * authenticated session may subscribe to any destination it can name. That is fine for
+ * {@code /topic/seatmap/{date}}, which every signed-in colleague is entitled to see, and wrong for
+ * {@code /topic/admin/**}, which carries operational telemetry. So destinations under
+ * {@code /topic/admin/} are gated here, on the authority derived from {@code app_user.role} —
+ * never from a claim on the token. Without this the REST tier's {@code hasRole('ADMIN')} would be
+ * trivially side-stepped by opening a socket instead.
  */
 @Component
 public class StompAuthChannelInterceptor implements ChannelInterceptor {
@@ -39,6 +52,11 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
     private static final String MISSING_TOKEN_MESSAGE = "A bearer token is required to connect.";
     private static final String INVALID_TOKEN_MESSAGE = "The bearer token is invalid or expired.";
     private static final String BEARER_PREFIX = "Bearer ";
+
+    /** Destinations under here are administrators-only. */
+    private static final String ADMIN_TOPIC_PREFIX = "/topic/admin/";
+    private static final String ADMIN_AUTHORITY = "ROLE_ADMIN";
+    private static final String FORBIDDEN_MESSAGE = "Administrator access is required for that topic.";
 
     private final JwtDecoder jwtDecoder;
     private final AuthProvider authProvider;
@@ -51,11 +69,30 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
     @Override
     public Message<?> preSend(Message<?> message, MessageChannel channel) {
         StompHeaderAccessor accessor = MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
-        if (accessor != null && StompCommand.CONNECT.equals(accessor.getCommand())) {
+        if (accessor == null) {
+            return message;
+        }
+        if (StompCommand.CONNECT.equals(accessor.getCommand())) {
             Jwt token = decode(accessor);
             accessor.setUser(new AuthenticatedUserToken(authProvider.resolve(token), token));
+        } else if (StompCommand.SUBSCRIBE.equals(accessor.getCommand())) {
+            authorizeSubscription(accessor);
         }
         return message;
+    }
+
+    /** Fails closed: an unnamed destination, or a session with no principal, is refused. */
+    private void authorizeSubscription(StompHeaderAccessor accessor) {
+        String destination = accessor.getDestination();
+        if (destination == null || !destination.startsWith(ADMIN_TOPIC_PREFIX)) {
+            return;
+        }
+        Principal principal = accessor.getUser();
+        if (!(principal instanceof Authentication authentication)
+                || authentication.getAuthorities().stream()
+                        .noneMatch(granted -> ADMIN_AUTHORITY.equals(granted.getAuthority()))) {
+            throw new AccessDeniedException(FORBIDDEN_MESSAGE);
+        }
     }
 
     private Jwt decode(StompHeaderAccessor accessor) {

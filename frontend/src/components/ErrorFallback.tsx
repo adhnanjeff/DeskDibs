@@ -28,14 +28,14 @@ export function ErrorFallback({
         aria-hidden="true"
       />
       <div>
-        <p className="font-semibold text-slate-800">{title}</p>
-        <p className="mt-1 text-sm text-slate-600">{message}</p>
+        <p className="font-semibold text-ink">{title}</p>
+        <p className="mt-1 text-sm text-ink-soft">{message}</p>
       </div>
       {onRetry && (
         <button
           type="button"
           onClick={onRetry}
-          className="mt-2 rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-700"
+          className="ui-card-sm ui-control ui-label mt-2 border-action bg-action px-4 py-2 text-sm font-bold text-white"
         >
           Try again
         </button>

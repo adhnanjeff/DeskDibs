@@ -38,9 +38,9 @@ export function SeatListFallback({
               {(zone.tables ?? []).map((table) => (
                 <div
                   key={table.tableId}
-                  className="border-2 border-ink bg-paper p-2.5 shadow-brutal-sm"
+                  className="ui-edge border-line bg-paper p-2.5 shadow-[var(--dd-shadow-sm)]"
                 >
-                  <p className="mb-2 font-mono text-[10px] font-semibold uppercase tracking-wider text-ink/55">
+                  <p className="mb-2 font-mono text-[10px] font-semibold ui-label text-ink/55">
                     {table.label}
                   </p>
                   <div className="grid max-w-[148px] grid-cols-3 gap-1.5">
