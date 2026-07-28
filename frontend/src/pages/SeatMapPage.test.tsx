@@ -34,7 +34,7 @@ describe('SeatMapPage', () => {
       screen.getByRole('button', { name: /seat L1-A2: booked, not in — Dev Employee/i }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: /seat R1-A1: disabled/i }),
+      screen.getByRole('button', { name: /seat R1-A1: out of service/i }),
     ).toBeInTheDocument();
   });
 });
