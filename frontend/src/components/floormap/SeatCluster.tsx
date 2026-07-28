@@ -39,7 +39,7 @@ export function SeatCluster({
   return (
     <div className="absolute" style={{ left, top: center.y, width: layout.width }}>
       <div
-        className="truncate text-center font-mono text-[10px] font-semibold uppercase tracking-wider text-ink/60"
+        className="truncate text-center font-mono text-[10px] font-semibold ui-label text-ink/60"
         style={{ height: POD_LABEL_H, marginBottom: POD_LABEL_GAP }}
       >
         {label}

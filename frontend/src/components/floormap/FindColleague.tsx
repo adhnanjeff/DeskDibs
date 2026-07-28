@@ -26,15 +26,15 @@ export function FindColleague({ people, onLocate, located, onClear }: FindCollea
   const searching = query.trim() !== '';
 
   return (
-    <div className="border-2 border-ink bg-paper p-4 shadow-brutal">
+    <div className="ui-edge border-line bg-paper p-4 shadow-[var(--dd-shadow)]">
       <label htmlFor={inputId} className="eyebrow text-[11px] text-ink/60">
         Find a colleague
       </label>
-      <p className="mb-2 font-mono text-[10px] uppercase tracking-wider text-ink/40">
+      <p className="mb-2 font-mono text-[10px] ui-label text-ink/40">
         {people.length} seated today
       </p>
 
-      <div className="flex items-center gap-2 border-2 border-ink bg-white px-2 py-1.5">
+      <div className="flex items-center gap-2 ui-edge border-line bg-white px-2 py-1.5">
         <FontAwesomeIcon
           icon={faMagnifyingGlass}
           className="h-3.5 w-3.5 shrink-0 text-ink/45"
@@ -66,13 +66,13 @@ export function FindColleague({ people, onLocate, located, onClear }: FindCollea
                   onLocate(person);
                   setQuery('');
                 }}
-                className="flex w-full items-center gap-2 border-2 border-transparent px-2 py-1.5 text-left hover:border-ink hover:bg-bauhaus-yellow"
+                className="flex w-full items-center gap-2 ui-edge border-transparent px-2 py-1.5 text-left hover:border-ink hover:bg-selected"
               >
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-semibold text-ink">
                     {person.name}
                   </span>
-                  <span className="block font-mono text-[11px] uppercase tracking-wider text-ink/55">
+                  <span className="block font-mono text-[11px] ui-label text-ink/55">
                     {person.seatLabel}
                     {person.checkedIn && ' · in'}
                   </span>
@@ -92,12 +92,12 @@ export function FindColleague({ people, onLocate, located, onClear }: FindCollea
       )}
 
       {located && (
-        <div className="mt-3 flex items-center gap-2 border-2 border-ink bg-bauhaus-yellow px-2.5 py-2">
+        <div className="mt-3 flex items-center gap-2 ui-edge border-line bg-selected px-2.5 py-2">
           <span className="min-w-0 flex-1">
-            <span className="block truncate text-xs font-bold uppercase tracking-wide text-ink">
+            <span className="block truncate text-xs font-bold ui-label text-ink">
               {located.name}
             </span>
-            <span className="block font-mono text-[11px] uppercase tracking-wider text-ink/70">
+            <span className="block font-mono text-[11px] ui-label text-ink/70">
               {located.seatLabel} · {located.tableLabel}
             </span>
           </span>
@@ -105,7 +105,7 @@ export function FindColleague({ people, onLocate, located, onClear }: FindCollea
             type="button"
             onClick={onClear}
             aria-label={`Stop showing ${located.name} on the map`}
-            className="shrink-0 border-2 border-ink p-1 text-ink hover:bg-ink hover:text-paper"
+            className="shrink-0 ui-edge border-line p-1 text-ink hover:bg-ink hover:text-paper"
           >
             <FontAwesomeIcon icon={faXmark} className="h-3 w-3" aria-hidden="true" />
           </button>

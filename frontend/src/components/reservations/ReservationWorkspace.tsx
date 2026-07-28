@@ -96,10 +96,10 @@ export function ReservationWorkspace({
   return (
     <div className="grid gap-4 lg:grid-cols-[300px_1fr]">
       <div className="order-2 flex flex-col gap-4 lg:order-1">
-        <div className="border-2 border-ink bg-paper p-4 shadow-brutal">
+        <div className="ui-edge border-line bg-paper p-4 shadow-[var(--dd-shadow)]">
           <p className="eyebrow text-[11px] text-ink/60">Hold desks</p>
 
-          <label className="mt-3 block text-xs font-bold uppercase tracking-wider text-ink">
+          <label className="mt-3 block text-xs font-bold ui-label text-ink">
             Team
             {/*
               `appearance-none` strips the OS control so the field matches every other bordered
@@ -111,7 +111,7 @@ export function ReservationWorkspace({
                 value={effectiveTeamId ?? ''}
                 onChange={(e) => setTeamId(Number(e.target.value))}
                 disabled={teams.isPending || (teams.data?.length ?? 0) === 0}
-                className="w-full appearance-none border-2 border-ink bg-white py-2 pl-2 pr-8 text-sm font-semibold text-ink disabled:opacity-50"
+                className="w-full appearance-none ui-edge border-line bg-white py-2 pl-2 pr-8 text-sm font-semibold text-ink disabled:opacity-50"
               >
                 {(teams.data ?? []).map((team) => (
                   <option key={team.id} value={team.id}>
@@ -134,32 +134,32 @@ export function ReservationWorkspace({
           )}
 
           <div className="mt-3 grid grid-cols-2 gap-2">
-            <label className="block text-xs font-bold uppercase tracking-wider text-ink">
+            <label className="block text-xs font-bold ui-label text-ink">
               From
               <input
                 type="date"
                 value={startDate}
                 min={today}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="mt-1 w-full border-2 border-ink bg-white px-2 py-1.5 font-mono text-xs font-semibold text-ink"
+                className="mt-1 w-full ui-edge border-line bg-white px-2 py-1.5 font-mono text-xs font-semibold text-ink"
               />
             </label>
-            <label className="block text-xs font-bold uppercase tracking-wider text-ink">
+            <label className="block text-xs font-bold ui-label text-ink">
               To
               <input
                 type="date"
                 value={endDate}
                 min={startDate || today}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="mt-1 w-full border-2 border-ink bg-white px-2 py-1.5 font-mono text-xs font-semibold text-ink"
+                className="mt-1 w-full ui-edge border-line bg-white px-2 py-1.5 font-mono text-xs font-semibold text-ink"
               />
             </label>
           </div>
 
-          <div className="mt-3 border-2 border-dashed border-ink/40 px-3 py-2">
+          <div className="mt-3 ui-edge border-dashed border-ink/40 px-3 py-2">
             <p className="eyebrow text-[10px] text-ink/50">Picked desks</p>
             {picked.size === 0 ? (
-              <p className="font-mono text-sm font-bold uppercase tracking-wider text-ink/35">
+              <p className="font-mono text-sm font-bold ui-label text-ink/35">
                 None — tap desks on the map
               </p>
             ) : (
@@ -174,7 +174,7 @@ export function ReservationWorkspace({
                         return next;
                       })}
                       aria-label={`Remove ${label} from the block`}
-                      className="flex items-center gap-1 border-2 border-ink bg-bauhaus-yellow px-1.5 py-0.5 font-mono text-[11px] font-bold uppercase tracking-wider text-ink"
+                      className="flex items-center gap-1 ui-edge border-line bg-selected px-1.5 py-0.5 font-mono text-[11px] font-bold ui-label text-ink"
                     >
                       {label}
                       <FontAwesomeIcon icon={faXmark} className="h-2.5 w-2.5" aria-hidden="true" />
@@ -189,14 +189,14 @@ export function ReservationWorkspace({
             type="button"
             onClick={submit}
             disabled={!canSubmit}
-            className="mt-3 flex w-full items-center justify-center gap-2 border-2 border-ink bg-bauhaus-red px-4 py-3 text-sm font-bold uppercase tracking-wider text-white shadow-brutal transition-transform hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none disabled:hover:translate-y-0"
+            className="mt-3 flex w-full items-center justify-center gap-2 ui-edge border-action bg-action px-4 py-3 text-sm font-bold ui-label text-white shadow-[var(--dd-shadow)] transition-transform hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none disabled:hover:translate-y-0"
           >
             <FontAwesomeIcon icon={faUsers} className="h-4 w-4" aria-hidden="true" />
             {create.isPending ? 'Holding…' : `Hold ${picked.size || ''} desk${picked.size === 1 ? '' : 's'}`}
           </button>
 
           {formError && (
-            <p role="alert" className="mt-2 flex items-start gap-1.5 text-xs font-semibold text-bauhaus-red">
+            <p role="alert" className="mt-2 flex items-start gap-1.5 text-xs font-semibold text-danger">
               <FontAwesomeIcon
                 icon={faTriangleExclamation}
                 className="mt-0.5 h-3 w-3"
@@ -244,9 +244,9 @@ function CurrentHolds({
   onRelease: (id: number) => void;
 }) {
   return (
-    <div className="border-2 border-ink bg-paper p-4 shadow-brutal">
+    <div className="ui-edge border-line bg-paper p-4 shadow-[var(--dd-shadow)]">
       <p className="eyebrow text-[11px] text-ink/60">Current holds</p>
-      <p className="font-mono text-[10px] uppercase tracking-wider text-ink/40">
+      <p className="font-mono text-[10px] ui-label text-ink/40">
         {isPending ? 'Loading…' : `${holds.length} live or upcoming`}
       </p>
       <p className="mb-2 text-[11px] font-semibold text-ink/55">
@@ -264,16 +264,16 @@ function CurrentHolds({
         {holds.map((hold) => (
           <li
             key={hold.id}
-            className={`flex items-center gap-2 border-2 border-ink px-2.5 py-1.5 ${
+            className={`flex items-center gap-2 ui-edge border-line px-2.5 py-1.5 ${
               hold.enforcedNow ? '' : 'opacity-60'
             }`}
             style={{ background: teamTint(hold.teamId) }}
           >
             <span className="min-w-0 flex-1">
-              <span className="block font-mono text-xs font-bold uppercase tracking-wider text-ink">
+              <span className="block font-mono text-xs font-bold ui-label text-ink">
                 {hold.seatLabel} · {hold.teamName}
               </span>
-              <span className="block font-mono text-[10px] uppercase tracking-wider text-ink/65">
+              <span className="block font-mono text-[10px] ui-label text-ink/65">
                 {hold.startDate} → {hold.endDate}
               </span>
               {/*
@@ -282,11 +282,11 @@ function CurrentHolds({
                 states it is in turns a apparent bug into the rule it actually is.
               */}
               {hold.enforcedNow ? (
-                <span className="block font-mono text-[10px] font-bold uppercase tracking-wider text-ink">
+                <span className="block font-mono text-[10px] font-bold ui-label text-ink">
                   Holding · frees {hold.releaseAtTime?.slice(0, 5)}
                 </span>
               ) : (
-                <span className="flex items-center gap-1 font-mono text-[10px] font-bold uppercase tracking-wider text-ink">
+                <span className="flex items-center gap-1 font-mono text-[10px] font-bold ui-label text-ink">
                   <FontAwesomeIcon icon={faLockOpen} className="h-2.5 w-2.5" aria-hidden="true" />
                   Released at {hold.releaseAtTime?.slice(0, 5)} — anyone may sit here
                 </span>
@@ -297,7 +297,7 @@ function CurrentHolds({
               onClick={() => onRelease(hold.id ?? -1)}
               disabled={releasingId === hold.id}
               aria-label={`Release ${hold.seatLabel} from ${hold.teamName}`}
-              className="shrink-0 border-2 border-ink p-1 text-ink hover:bg-ink hover:text-paper disabled:opacity-40"
+              className="shrink-0 ui-edge border-line p-1 text-ink hover:bg-ink hover:text-paper disabled:opacity-40"
             >
               <FontAwesomeIcon icon={faXmark} className="h-3 w-3" aria-hidden="true" />
             </button>

@@ -128,6 +128,27 @@ const RIGHT_X = 1086;
 const RIGHT_W = 130;
 const WS_BOTTOM = WS.y + WS.h;
 
+/**
+ * The left column, top to bottom: a long pantry, the fire staircase, the services shaft, and a
+ * short fire exit. Derived rather than written as four magic numbers so the column always ends
+ * flush with the workspace, whatever the pantry is given.
+ */
+const PANTRY_H = 196;
+const COLUMN_GAP = 4;
+const STAIRCASE_Y = TOP_Y + PANTRY_H + 8;
+const STAIRCASE_H = 90;
+const SHAFT_Y = STAIRCASE_Y + STAIRCASE_H + COLUMN_GAP;
+const SHAFT_H = 62;
+const FIRE_EXIT_Y = SHAFT_Y + SHAFT_H + COLUMN_GAP;
+
+/**
+ * How far the fire-exit landing and the entrance lobby stand proud of the building line. On the
+ * real plan both break the rectangle — the fire exit to the left, the entry to the right — and
+ * flattening them was what made the drawn floor read as a box rather than as this floor.
+ */
+const OVERHANG_X = 4;
+const ENTRY_OVERHANG = 18;
+
 // Rooms across the top corridor, right of the pantry. The 4th room (after the
 // pantry and two manager cabins) is the server room, per the finalized plan.
 const topStrip = layoutStrip(WS.x, WS.x + WS.w, TOP_Y, TOP_H, [
@@ -135,11 +156,13 @@ const topStrip = layoutStrip(WS.x, WS.x + WS.w, TOP_Y, TOP_H, [
   { id: 'manager-cabin-2', label: 'Manager Cabin', category: 'cabin', weight: 1 },
   { id: 'server-room', label: 'Server Room', category: 'server', weight: 1 },
   { id: 'manager-cabin-3', label: 'Manager Cabin', category: 'cabin', weight: 1 },
-  { id: 'm1', label: '4P Meeting', category: 'meeting', weight: 1.05 },
-  { id: 'm2', label: '4P Meeting', category: 'meeting', weight: 1.05 },
-  { id: 'm3', label: '4P Meeting', category: 'meeting', weight: 1.05 },
+  // Capacities left to right along the top corridor. The wider rooms get proportionally more
+  // width, so the strip reads as the floor does rather than as equal boxes.
+  { id: 'm1', label: '6P Meeting', category: 'meeting', weight: 1.1 },
+  { id: 'm2', label: '8P Meeting', category: 'meeting', weight: 1.3 },
+  { id: 'm3', label: '4P Meeting', category: 'meeting', weight: 0.95 },
   { id: 'director-cabin', label: 'Director Cabin', category: 'cabin', weight: 1 },
-  { id: 'm4', label: '4P Meeting', category: 'meeting', weight: 1.05 },
+  { id: 'm4', label: '4P Meeting', category: 'meeting', weight: 0.95 },
 ]);
 
 /**
@@ -149,20 +172,22 @@ const topStrip = layoutStrip(WS.x, WS.x + WS.w, TOP_Y, TOP_H, [
 export const ROOMS: Room[] = [
   { id: 'workspace', label: 'Open Workstations', category: 'workspace', x: WS.x, y: WS.y, w: WS.w, h: WS.h },
 
-  { id: 'pantry', label: 'Dry Pantry', category: 'pantry', x: LEFT_X, y: TOP_Y, w: LEFT_W, h: TOP_H },
+  { id: 'pantry', label: 'Dry Pantry', category: 'pantry', x: LEFT_X, y: TOP_Y, w: LEFT_W, h: PANTRY_H },
   ...topStrip,
 
   // Right side: the walk-in entrance juts out at the top, then a small reception,
   // a larger meeting room, and the service area at the bottom.
-  { id: 'entrance', label: 'Office Entry', category: 'utility', x: RIGHT_X, y: TOP_Y - 6, w: RIGHT_W, h: 100 },
+  { id: 'entrance', label: 'Office Entry', category: 'utility', x: RIGHT_X, y: TOP_Y - 6, w: RIGHT_W + ENTRY_OVERHANG, h: 100 },
   { id: 'reception', label: 'Reception', category: 'reception', x: RIGHT_X, y: 118, w: RIGHT_W, h: 92 },
-  { id: 'right-meeting', label: 'Meeting Room', category: 'meeting', x: RIGHT_X, y: 214, w: RIGHT_W, h: 150 },
+  { id: 'right-meeting', label: '12P Meeting', category: 'meeting', x: RIGHT_X, y: 214, w: RIGHT_W, h: 150 },
   { id: 'service', label: 'Service Area', category: 'utility', x: RIGHT_X, y: 368, w: RIGHT_W, h: WS_BOTTOM - 368 },
 
-  // Left utilities below the pantry — no toilets on this floor.
-  { id: 'fire-staircase', label: 'Fire Staircase', category: 'utility', x: LEFT_X, y: 182, w: LEFT_W, h: 96 },
-  { id: 'electrical', label: 'Elec / PHE Shaft', category: 'utility', x: LEFT_X, y: 282, w: LEFT_W, h: 68 },
-  { id: 'fire-exit', label: 'Fire Exit', category: 'exit', x: LEFT_X, y: 354, w: LEFT_W, h: WS_BOTTOM - 354 },
+  // Left utilities below the pantry — no toilets on this floor. The fire exit is the smallest
+  // of the three and, like the real floor, its landing juts out past the building line: it is
+  // drawn wider than the column and starting left of LEFT_X.
+  { id: 'fire-staircase', label: 'Fire Staircase', category: 'utility', x: LEFT_X, y: STAIRCASE_Y, w: LEFT_W, h: STAIRCASE_H },
+  { id: 'electrical', label: 'Elec / PHE Shaft', category: 'utility', x: LEFT_X, y: SHAFT_Y, w: LEFT_W, h: SHAFT_H },
+  { id: 'fire-exit', label: 'Fire Exit', category: 'exit', x: OVERHANG_X, y: FIRE_EXIT_Y, w: LEFT_W + (LEFT_X - OVERHANG_X), h: WS_BOTTOM - FIRE_EXIT_Y },
 
   { id: 'balcony', label: 'Open Balcony', category: 'balcony', x: LEFT_X, y: WS_BOTTOM + WS_BOTTOM_GAP, w: 1192, h: 84, spread: true },
 

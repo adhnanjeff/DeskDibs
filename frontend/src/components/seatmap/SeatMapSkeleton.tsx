@@ -26,7 +26,7 @@ export function SeatMapSkeleton() {
       data-testid="seatmap-skeleton"
     >
       <section aria-hidden="true">
-        <div className="mb-3 h-4 w-20 rounded bg-slate-200" />
+        <div className="mb-3 h-4 w-20 rounded bg-paper-dim" />
         <div className="flex flex-wrap gap-3">
           {LEFT_WING_TABLES.map((t) => (
             <TableSkeleton
@@ -38,7 +38,7 @@ export function SeatMapSkeleton() {
         </div>
       </section>
       <section aria-hidden="true">
-        <div className="mb-3 h-4 w-20 rounded bg-slate-200" />
+        <div className="mb-3 h-4 w-20 rounded bg-paper-dim" />
         <div className="flex flex-wrap gap-3">
           {RIGHT_WING_TABLES.map((t) => (
             <TableSkeleton

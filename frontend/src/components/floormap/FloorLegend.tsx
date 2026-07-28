@@ -18,7 +18,7 @@ function Swatch({ state }: { state: SeatDisplayState }) {
   return (
     <span className="flex items-center gap-1.5">
       <span
-        className="flex h-4 w-4 items-center justify-center border-2 border-ink"
+        className="flex h-4 w-4 items-center justify-center ui-edge border-ink"
         style={{ background: meta.fill }}
       >
         <FontAwesomeIcon
@@ -27,7 +27,7 @@ function Swatch({ state }: { state: SeatDisplayState }) {
           style={{ color: glyph, width: 8, height: 8 }}
         />
       </span>
-      <span className="font-mono text-[10px] font-semibold uppercase tracking-wider text-ink/80">
+      <span className="font-mono text-[10px] font-semibold ui-label text-ink/80">
         {meta.label}
       </span>
     </span>

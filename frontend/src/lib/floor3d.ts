@@ -158,13 +158,13 @@ export function readScenePalette() {
 /** Seat-state fills, resolved from the same tokens the 2D tiles use. */
 export function readSeatPalette() {
   return {
-    AVAILABLE: cssColor('--color-seat-available', '#e9e2d0'),
+    AVAILABLE: cssColor('--color-seat-available', '#faf8f3'),
     SELECTED: cssColor('--color-seat-selected', '#f5c518'),
     YOURS: cssColor('--color-seat-yours', '#2b6ce5'),
-    OCCUPIED: cssColor('--color-seat-occupied', '#141414'),
+    OCCUPIED: cssColor('--color-seat-occupied', '#aca79c'),
     TEAM_RESERVED: cssColor('--color-seat-team-reserved', '#b9a4e6'),
     CHECKED_IN: cssColor('--color-seat-checked-in', '#1f9d6b'),
-    DISABLED: cssColor('--color-seat-disabled', '#b7b3a8'),
+    DISABLED: cssColor('--color-seat-disabled', '#5f5c55'),
     PENDING: cssColor('--color-seat-pending', '#f5c518'),
   };
 }

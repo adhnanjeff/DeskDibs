@@ -76,6 +76,10 @@ public class BookingController {
             description = "Atomically cancels whatever the caller holds that day and claims the new seat. "
                     + "A target seat that cannot be claimed leaves the original booking untouched and ACTIVE.")
     @ApiResponse(responseCode = "200", description = "Now holding the new seat.")
+    @ApiResponse(responseCode = "409",
+            description = "Somebody else won the target seat. The caller keeps the desk they already had.")
+    @ApiResponse(responseCode = "403", description = "The target seat is held for a team the caller is not in.")
+    @ApiResponse(responseCode = "400", description = "The date is outside the booking window, or not a working day.")
     public ResponseEntity<BookingResponse> move(
             @Valid @RequestBody MoveBookingRequest request,
             @RequestHeader(value = IDEMPOTENCY_KEY_HEADER, required = false) String idempotencyKey) {

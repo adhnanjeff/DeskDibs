@@ -9,7 +9,7 @@ export function FullPageSpinner() {
     >
       <FontAwesomeIcon
         icon={faCircleNotch}
-        className="h-6 w-6 animate-spin text-brand-500 motion-reduce:animate-none"
+        className="h-6 w-6 animate-spin text-action motion-reduce:animate-none"
         aria-hidden="true"
       />
       <span className="sr-only">Loading…</span>

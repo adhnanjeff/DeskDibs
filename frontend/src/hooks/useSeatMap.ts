@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { apiClient } from '../api/client';
 import { getErrorMessage } from '../api/errors';
 
@@ -33,6 +33,10 @@ export function useSeatMap(date?: string, options: SeatMapOptions = {}) {
       }
       return data;
     },
+    // Picking a new date changes the query key, which without this makes the query "pending"
+    // again — and the page swaps the whole floor for a skeleton, which reads as a page reload.
+    // Holding the previous day's map means only the seats change under you.
+    placeholderData: keepPreviousData,
     refetchInterval: live ? false : POLL_INTERVAL_MS,
     // Keep polling a backgrounded tab that has lost its socket: somebody returning to it should
     // find the current floor, not a snapshot from whenever they last looked.

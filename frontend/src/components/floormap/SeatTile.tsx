@@ -69,11 +69,11 @@ export function SeatTile({
       aria-label={ariaLabel}
       title={ariaLabel}
       aria-pressed={canAct ? selected : undefined}
-      className={`flex items-center justify-center border-2 border-ink ${
+      className={`flex items-center justify-center ui-edge border-ink ${
         canAct || selected
-          ? 'cursor-pointer hover:-translate-y-px hover:shadow-brutal-sm'
+          ? 'cursor-pointer hover:-translate-y-px hover:shadow-[var(--dd-shadow-sm)]'
           : 'cursor-default'
-      } ${selected ? 'shadow-brutal-sm' : ''} ${anim}`}
+      } ${selected ? 'shadow-[var(--dd-shadow-sm)]' : ''} ${anim}`}
       style={{
         width: SEAT_TILE,
         height: SEAT_TILE,
@@ -82,7 +82,7 @@ export function SeatTile({
         // A located seat wears a heavy blue halo — distinct from the yellow of
         // selection, and drawn outside the tile so it never hides the state icon.
         ...(located
-          ? { outline: '3px solid var(--color-bauhaus-blue)', outlineOffset: 2, zIndex: 1 }
+          ? { outline: '3px solid var(--color-info)', outlineOffset: 2, zIndex: 1 }
           : null),
       }}
     >

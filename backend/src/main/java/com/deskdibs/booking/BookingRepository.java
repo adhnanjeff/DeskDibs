@@ -176,4 +176,65 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
             where b.bookingDate = :date and b.status = 'ACTIVE' and b.checkedInAt is null
            """)
     int releaseNoShows(@Param("date") LocalDate date, @Param("now") OffsetDateTime now);
+
+    // ─── Administrative releases (PLAN.md §5 #12 and #13) ────────────────────────
+    //
+    // Both follow the same shape as the no-show release above and for the same reason: the rows are
+    // read first so the freed seats can be broadcast, then a bulk update re-evaluates the predicate
+    // at the database. Anything that stopped being ACTIVE between the two statements simply falls
+    // out and is left alone.
+    //
+    // "From today onward" rather than "strictly after today" in both cases. A desk taken out of
+    // service this morning cannot be sat at this afternoon, and somebody who has left the company
+    // is not coming in today either.
+
+    /**
+     * Everything one person still holds from {@code from} onward, with the seat joined so the
+     * caller can name each desk it is about to hand back.
+     */
+    @Query("""
+           select b from Booking b
+           join fetch b.seat
+           join fetch b.user
+           where b.user.id = :userId and b.bookingDate >= :from and b.status = 'ACTIVE'
+           order by b.bookingDate asc
+           """)
+    List<Booking> findActiveFromDateForUserFetchSeat(@Param("userId") Long userId,
+                                                     @Param("from") LocalDate from);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+           update Booking b
+              set b.status = com.deskdibs.booking.BookingStatus.RELEASED_USER_DEACTIVATED,
+                  b.updatedAt = :now
+            where b.user.id = :userId and b.bookingDate >= :from and b.status = 'ACTIVE'
+           """)
+    int releaseFutureBookingsOfDeactivatedUser(@Param("userId") Long userId,
+                                               @Param("from") LocalDate from,
+                                               @Param("now") OffsetDateTime now);
+
+    /**
+     * Everything still booked on one seat from {@code from} onward, with the occupant joined so the
+     * caller can report who is affected by withdrawing the desk.
+     */
+    @Query("""
+           select b from Booking b
+           join fetch b.seat
+           join fetch b.user
+           where b.seat.id = :seatId and b.bookingDate >= :from and b.status = 'ACTIVE'
+           order by b.bookingDate asc
+           """)
+    List<Booking> findActiveFromDateForSeatFetchUser(@Param("seatId") Long seatId,
+                                                     @Param("from") LocalDate from);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+           update Booking b
+              set b.status = com.deskdibs.booking.BookingStatus.RELEASED_SEAT_REMOVED,
+                  b.updatedAt = :now
+            where b.seat.id = :seatId and b.bookingDate >= :from and b.status = 'ACTIVE'
+           """)
+    int releaseBookingsOnWithdrawnSeat(@Param("seatId") Long seatId,
+                                       @Param("from") LocalDate from,
+                                       @Param("now") OffsetDateTime now);
 }

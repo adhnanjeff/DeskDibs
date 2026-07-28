@@ -1,18 +1,30 @@
 @import 'tailwindcss';
 
 /*
- * DeskDibs design tokens — neo-brutalist Bauhaus.
+ * DeskDibs design tokens — TWO THEMES, one token vocabulary.
  *
- * THESIS: the floor map is the interface. The office is drawn as a Bauhaus
- * blueprint — warm paper, near-black ink, thick hairline borders and HARD
+ * `cool` (default) — neo-brutalist Bauhaus. The floor map is the interface,
+ * drawn as a blueprint: warm paper, near-black ink, thick borders and HARD
  * offset shadows (no blur). Bauhaus primaries carry function, never mood:
- * yellow = selected/active, red = the one primary action, and flat category
- * hues label the rooms. Seat state is colour + a distinct square-tile
- * treatment + icon + text — colour is never the only signal.
+ * yellow = selected/active, red = the one primary action.
  *
- * Type is a two-family system: Space Grotesk (display + UI, uppercase with
- * tracking for structure) and IBM Plex Mono (seat codes, counts, timestamps —
- * coordinate data rendered on a monospace grid).
+ * `office` — the PreCorr corporate house style. Cool blue-grey canvas, white
+ * cards, 1px hairlines, soft shadows, system font, sentence case, dense rows.
+ * Values are measured from the PreCorr UI proposal; see
+ * .claude/skills/office-theme/ for the full extraction and the rules.
+ *
+ * HOW THE SWITCH WORKS
+ * Tailwind v4 compiles colour utilities to var() — `bg-paper` becomes
+ * `background-color: var(--color-paper)`. So redefining --color-* below in
+ * [data-theme='office'] re-skins every existing utility with no class changes.
+ * Shadows, radii and border widths do NOT work that way (their values are
+ * baked into the utility at build time), so anything structural goes through a
+ * --dd-* variable consumed by the .ui-* classes further down.
+ *
+ * Seat state is colour + tile shape + icon + text in BOTH themes — colour is
+ * never the only signal. Every foreground/background pair below is checked at
+ * WCAG AA (4.5:1); the office status accents from the proposal are text-unsafe
+ * and carry a separate darkened -text token.
  */
 @theme {
   --font-sans:
@@ -22,12 +34,28 @@
     'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
 
   /* ── Base: paper + ink ─────────────────────────────────────────────── */
-  --color-paper: #f4f1e9; /* warm cream canvas */
+  --color-canvas: #f4f1e9; /* page background (behind cards) */
+  --color-paper: #f4f1e9; /* card / panel surface */
   --color-paper-dim: #eae4d6; /* recessed panel */
-  --color-ink: #141414; /* near-black: borders + text */
+  --color-ink: #141414; /* near-black: text, and the seat-tile edge */
   --color-ink-soft: #57544c; /* secondary text */
+  --color-line: #141414; /* panel borders — same as ink in cool, by design */
 
-  /* ── Bauhaus primaries as function ─────────────────────────────────── */
+  /* ── Function tokens — what a colour MEANS, not what it looks like ─── */
+  --color-action: #e5372a; /* the one primary action (Book Now) */
+  --color-action-deep: #c02a20; /* its hover/active state */
+  --color-selected: #f5c518; /* selected / active / current */
+  --color-selected-deep: #d8aa00;
+  --color-danger: #e5372a; /* errors, conflicts, destructive */
+  --color-danger-tint: #fdeceb;
+  --color-success: #1f9d6b;
+  --color-success-tint: #e6f6ee;
+  --color-warning: #d8aa00;
+  --color-warning-tint: #fdf6da;
+  --color-info: #2b6ce5;
+  --color-info-tint: #e7effc;
+
+  /* ── Bauhaus primaries (cool theme's own vocabulary) ───────────────── */
   --color-bauhaus-yellow: #f5c518; /* selected / active */
   --color-bauhaus-yellow-deep: #d8aa00;
   --color-bauhaus-red: #e5372a; /* primary action (Book Now) */
@@ -44,14 +72,21 @@
   --color-room-utility: #e6e2d8; /* light grey */
   --color-room-workspace: #ffffff; /* white */
 
-  /* ── Seat-state palette — tile fill + icon + label together ────────── */
-  --color-seat-available: #e9e2d0; /* cream tile — faChair */
-  --color-seat-occupied: #141414; /* solid ink — faUser (white glyph) */
+  /*
+   * ── Seat-state palette — tile fill + icon + label together ──────────
+   * Available / booked / unavailable follow the convention every cinema and
+   * airline seat picker uses, because people arrive already knowing it:
+   * an empty seat is near-white and outlined, a booked one is GREY and muted,
+   * and one that is out of service is a darker grey. Everything else (yours,
+   * selected, team hold) keeps this theme's own accent language.
+   */
+  --color-seat-available: #faf8f3; /* near-white, outlined — free — faChair */
+  --color-seat-occupied: #aca79c; /* grey — taken — faUser (ink glyph) */
   --color-seat-yours: #2b6ce5; /* blue — faCircleUser */
   --color-seat-selected: #f5c518; /* yellow — selection */
   --color-seat-team-reserved: #b9a4e6; /* lavender — faUsers */
   --color-seat-checked-in: #1f9d6b; /* green — faUserCheck */
-  --color-seat-disabled: #b7b3a8; /* grey — faBan */
+  --color-seat-disabled: #5f5c55; /* darker grey — out of service — faBan */
   --color-seat-pending: #f5c518; /* yellow (animated) — faHourglassHalf */
 
   /* Legacy tint tokens kept until the seat layer lands (SeatStateBadge). */
@@ -73,14 +108,166 @@
   --shadow-brutal-lg: 6px 6px 0 0 var(--color-ink);
 }
 
+/*
+ * Structural tokens. Tailwind bakes radii/borders/shadows into its utilities,
+ * so these are consumed by the .ui-* classes below instead. cool = square,
+ * thick and hard-shadowed; office = rounded, hairline and softly lifted.
+ */
+:root {
+  /* The width of the app shell: header, content and footer all align to it. Wide enough for the
+     office theme's dense grids, still capped so text lines never become unreadable. */
+  --dd-shell-max: 1760px;
+
+  --dd-radius: 0px;
+  --dd-radius-sm: 0px;
+  --dd-border: 2px;
+  --dd-shadow: 4px 4px 0 0 var(--color-ink);
+  --dd-shadow-sm: 2px 2px 0 0 var(--color-ink);
+  --dd-label-transform: uppercase;
+  --dd-label-tracking: 0.08em;
+  --dd-eyebrow-tracking: 0.14em;
+  --dd-accent-bar: 4px;
+  --dd-title-size: 1.875rem;
+  --dd-title-size-lg: 2.25rem;
+  --dd-title-tracking: -0.025em;
+  --dd-wordmark-font: var(--font-mono);
+  --dd-focus: 3px solid var(--color-ink);
+  --dd-focus-offset: 2px;
+  /* Density. `auto` means "whatever the padding gives you" — the compact
+     desktop size both themes already use. The touch floor kicks in below. */
+  --dd-control-h: auto;
+  --dd-row-h: auto;
+}
+
+/*
+ * The 44px touch floor. Applies to BOTH themes, because a finger is a finger:
+ * the office theme's 32px proposal density is a mouse-only affordance. Keyed on
+ * coarse pointers and on narrow viewports, so a resized desktop window is
+ * covered too.
+ */
+@media (pointer: coarse), (max-width: 767px) {
+  :root {
+    --dd-control-h: 2.75rem;
+    --dd-row-h: 3rem;
+  }
+}
+
+/*
+ * ── OFFICE THEME (PreCorr) ───────────────────────────────────────────────
+ * Unlayered, so it wins over Tailwind's @layer theme regardless of order.
+ */
+[data-theme='office'] {
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue',
+    Arial, sans-serif;
+  /*
+   * The proposal uses one font for everything — there is no monospace anywhere
+   * in it. cool's mono/sans split is a Bauhaus conceit, so office collapses it.
+   * Seat codes and counts keep their column alignment via tabular figures
+   * (applied on the element below) rather than via a monospace face.
+   */
+  --font-mono:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue',
+    Arial, sans-serif;
+
+  /* Base */
+  --color-canvas: #eaf0f6; /* the blue-grey app canvas */
+  --color-paper: #ffffff; /* cards are pure white, no border needed */
+  --color-paper-dim: #f1f4f8; /* zebra rows, inset panels */
+  --color-ink: #253239; /* desaturated slate, not black */
+  --color-ink-soft: #5a6b75; /* AA on both white and canvas */
+  --color-line: #d3dce4; /* hairline — the proposal barely draws card edges */
+
+  /* Function */
+  --color-action: #0254fd; /* white label = 5.7:1 */
+  --color-action-deep: #0147d8;
+  --color-selected: #dbe1fc; /* soft blue fill; ink on it = 10.2:1 */
+  --color-selected-deep: #b9c8f7;
+  --color-danger: #a90730; /* stays red — action is blue, danger is not */
+  --color-danger-tint: #f6e6ea;
+  --color-success: #2e821a;
+  --color-success-tint: #edfcea;
+  --color-warning: #a3601d;
+  --color-warning-tint: #fdf4ea;
+  --color-info: #0c73b5;
+  --color-info-tint: #e7f5ff;
+
+  /* The cool theme's own names, remapped so untouched markup still reads
+     correctly: yellow means "selected", red means "the primary action". */
+  --color-bauhaus-yellow: #dbe1fc;
+  --color-bauhaus-yellow-deep: #b9c8f7;
+  --color-bauhaus-red: #0254fd;
+  --color-bauhaus-red-deep: #0147d8;
+  --color-bauhaus-blue: #0254fd;
+
+  /* Rooms: the proposal's tints, flattened into the blue-grey family */
+  --color-room-reception: #e7f5ff;
+  --color-room-meeting: #edfcea;
+  --color-room-cabin: #eae7fa;
+  --color-room-pantry: #fdf4ea;
+  --color-room-server: #e4e0f6;
+  --color-room-collab: #fdeae0;
+  --color-room-utility: #eef1f4;
+  --color-room-workspace: #ffffff;
+
+  /* Seat state. Fills are AA-checked against their glyph colour; the hues are
+     derived from the proposal's status families (it has no floor map). */
+  --color-seat-available: #ffffff; /* empty and outlined — ink glyph 13.2:1 */
+  --color-seat-occupied: #b6c1ca; /* grey = booked — ink glyph 7.2:1 */
+  --color-seat-yours: #0254fd; /* white glyph — 5.7:1 */
+  --color-seat-selected: #f38f2b; /* ink glyph — 5.5:1 */
+  --color-seat-team-reserved: #7967cc; /* white glyph — 4.5:1 */
+  --color-seat-checked-in: #2e821a; /* white glyph — 4.9:1 */
+  --color-seat-disabled: #5c666e; /* out of service — white glyph 5.9:1 */
+  --color-seat-pending: #f5b65c; /* ink glyph — 7.4:1 */
+
+  --color-seat-available-tint: #f4f7fa;
+  --color-seat-yours-tint: #e7f5ff;
+  --color-seat-occupied-tint: #eef1f4;
+  --color-seat-team-reserved-tint: #eae7fa;
+  --color-seat-checked-in-tint: #edfcea;
+  --color-seat-disabled-tint: #f1f4f8;
+  --color-seat-pending-tint: #fdf4ea;
+
+  --color-brand-500: #0254fd;
+  --color-brand-600: #0147d8;
+
+  /* Structure: hairline, rounded, softly lifted, sentence case */
+  --dd-radius: 6px;
+  --dd-radius-sm: 4px;
+  --dd-border: 1px;
+  --dd-shadow: 0 1px 2px rgb(16 24 40 / 0.06);
+  --dd-shadow-sm: 0 1px 1px rgb(16 24 40 / 0.05);
+  --dd-label-transform: none;
+  --dd-label-tracking: 0;
+  --dd-eyebrow-tracking: 0;
+  --dd-accent-bar: 2px;
+  --dd-title-size: 1.25rem; /* the proposal's 20px page title */
+  --dd-title-size-lg: 1.25rem;
+  --dd-title-tracking: 0;
+  --dd-wordmark-font: var(--font-sans);
+  --dd-focus: 2px solid var(--color-action);
+  --dd-focus-offset: 2px;
+}
+
 html {
   color-scheme: light;
+}
+
+/*
+ * Seat codes, counts and timestamps are laid out as columns. cool gets that
+ * from a real monospace face; office folds mono into the UI font, so the
+ * alignment has to come from tabular figures instead.
+ */
+[data-theme='office'] .font-mono,
+[data-theme='office'] .eyebrow {
+  font-variant-numeric: tabular-nums;
 }
 
 body {
   margin: 0;
   font-family: var(--font-sans);
-  background-color: var(--color-paper);
+  background-color: var(--color-canvas);
   color: var(--color-ink);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -100,18 +287,105 @@ body,
   flex-direction: column;
 }
 
-/* Bauhaus focus: a solid ink ring, never removed. */
+/* Focus is themed but never removed: an ink ring in cool, a blue one in office. */
 :focus-visible {
-  outline: 3px solid var(--color-ink);
-  outline-offset: 2px;
+  outline: var(--dd-focus);
+  outline-offset: var(--dd-focus-offset);
 }
 
 /* An uppercase, letter-spaced label — structure, not decoration. */
 .eyebrow {
   font-family: var(--font-mono);
-  text-transform: uppercase;
-  letter-spacing: 0.14em;
+  text-transform: var(--dd-label-transform);
+  letter-spacing: var(--dd-eyebrow-tracking);
 }
+
+/*
+ * ── Themed primitives ────────────────────────────────────────────────────
+ * Shape, weight and elevation live here rather than in Tailwind utilities,
+ * because Tailwind bakes those values in at build time and a theme cannot move
+ * them afterwards. Pair these with the colour utilities as normal:
+ *
+ *     <div className="ui-card border-ink bg-paper p-4">
+ *
+ * cool renders a 2px ink border with a hard 4px offset shadow and square
+ * corners; office renders a 1px hairline, a 6px radius and a soft lift.
+ */
+@layer components {
+  .ui-card {
+    border-width: var(--dd-border);
+    border-style: solid;
+    border-radius: var(--dd-radius);
+    box-shadow: var(--dd-shadow);
+  }
+
+  .ui-card-sm {
+    border-width: var(--dd-border);
+    border-style: solid;
+    border-radius: var(--dd-radius-sm);
+    box-shadow: var(--dd-shadow-sm);
+  }
+
+  /* A bordered element with no elevation — inputs, chips, flat panels. */
+  .ui-edge {
+    border-width: var(--dd-border);
+    border-style: solid;
+    border-radius: var(--dd-radius-sm);
+  }
+
+  /* Structural label casing. Uppercase + tracked in cool, sentence in office. */
+  .ui-label {
+    text-transform: var(--dd-label-transform);
+    letter-spacing: var(--dd-label-tracking);
+  }
+
+  /*
+   * Page H1. cool shouts (3xl/4xl uppercase); office states it quietly at the
+   * proposal's 20px, because in a corporate tool the data is the headline.
+   */
+  .ui-title {
+    font-size: var(--dd-title-size);
+    letter-spacing: var(--dd-title-tracking);
+    text-transform: var(--dd-label-transform);
+    font-weight: 700;
+    line-height: 1.15;
+  }
+
+  @media (min-width: 640px) {
+    .ui-title {
+      font-size: var(--dd-title-size-lg);
+    }
+  }
+
+  /* Interactive controls hold the touch floor on coarse pointers. */
+  .ui-control {
+    min-height: var(--dd-control-h);
+  }
+
+  /* Icon-only buttons have no text to widen them — pin both axes. */
+  .ui-control-icon {
+    min-height: var(--dd-control-h);
+    min-width: var(--dd-control-h);
+  }
+
+  /*
+   * The DeskDibs wordmark. cool sets it in tracked monospace caps — that IS
+   * the brand there. office is a tool inside a toolchain, so it uses the same
+   * UI font as everything else and stops shouting.
+   */
+  /* The footer's brand rule: a bold slab in cool, a restrained hairline in office. */
+  .ui-accent-bar {
+    border-top-width: var(--dd-accent-bar);
+    border-top-style: solid;
+  }
+
+  .ui-wordmark {
+    font-family: var(--dd-wordmark-font);
+    text-transform: var(--dd-label-transform);
+    letter-spacing: var(--dd-label-tracking);
+  }
+}
+
 
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -145,6 +419,38 @@ body,
     transparent
   );
   animation: skeleton-shimmer-sweep 1.6s ease-in-out infinite;
+}
+
+/*
+ * API view: one dot per finished request, travelling its lane from the clients to the server.
+ * The motion IS the data — a dot exists because a call completed — which is why it survives the
+ * "no decorative animation" rule. Under prefers-reduced-motion the global override collapses it to
+ * nothing and the per-lane counters and the event feed carry the same information instead, so the
+ * screen is never only-motion.
+ */
+@keyframes api-packet-travel {
+  from {
+    left: 0%;
+    opacity: 0;
+  }
+  12% {
+    opacity: 1;
+  }
+  88% {
+    opacity: 1;
+  }
+  to {
+    left: 100%;
+    opacity: 0;
+  }
+}
+
+.api-packet {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  animation: api-packet-travel 1100ms linear forwards;
+  will-change: left;
 }
 
 /* Seat claimed by you — a single green ripple outward, then settle. */

@@ -65,7 +65,7 @@ export function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-svh items-center justify-center bg-slate-900 px-4">
+    <div className="flex min-h-svh items-center justify-center bg-canvas px-4">
       <motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
@@ -73,17 +73,17 @@ export function LoginPage() {
         className="w-full max-w-sm"
       >
         <div className="mb-8 flex flex-col items-center gap-2 text-center">
-          <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-brand-500/20 text-brand-400">
+          <span className="flex h-12 w-12 items-center justify-center bg-selected text-ink">
             <FontAwesomeIcon
               icon={faChair}
               className="h-6 w-6"
               aria-hidden="true"
             />
           </span>
-          <h1 className="font-mono text-lg font-semibold tracking-tight text-white">
+          <h1 className="ui-wordmark text-lg font-bold text-ink">
             DeskDibs
           </h1>
-          <p className="text-sm text-slate-400">
+          <p className="text-sm text-ink-soft">
             Sign in to claim today's seat.
           </p>
         </div>
@@ -91,12 +91,12 @@ export function LoginPage() {
         <form
           onSubmit={(event) => void handleSubmit(event)}
           noValidate
-          className="flex flex-col gap-4 rounded-xl border border-slate-800 bg-slate-800/60 p-6 shadow-xl"
+          className="ui-card flex flex-col gap-4 border-ink bg-paper p-6"
         >
           {submitError && (
             <div
               role="alert"
-              className="flex items-start gap-2 rounded-md border border-rose-500/40 bg-rose-500/10 p-3 text-sm text-rose-300"
+              className="ui-edge flex items-start gap-2 border-danger bg-danger-tint p-3 text-sm font-semibold text-danger"
             >
               <FontAwesomeIcon
                 icon={faTriangleExclamation}
@@ -110,7 +110,7 @@ export function LoginPage() {
           <div className="flex flex-col gap-1.5">
             <label
               htmlFor="email"
-              className="text-sm font-medium text-slate-300"
+              className="ui-label text-sm font-semibold text-ink"
             >
               Email
             </label>
@@ -123,11 +123,11 @@ export function LoginPage() {
               onChange={(e) => setEmail(e.target.value)}
               aria-invalid={Boolean(fieldErrors.email)}
               aria-describedby={fieldErrors.email ? 'email-error' : undefined}
-              className="rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:border-brand-500 focus:outline-none"
+              className="ui-edge ui-control border-ink bg-white px-3 py-2 text-sm text-ink placeholder:text-ink-soft"
               placeholder="you@deskdibs.local"
             />
             {fieldErrors.email && (
-              <p id="email-error" className="text-xs text-rose-400">
+              <p id="email-error" className="text-xs font-semibold text-danger">
                 {fieldErrors.email}
               </p>
             )}
@@ -136,7 +136,7 @@ export function LoginPage() {
           <div className="flex flex-col gap-1.5">
             <label
               htmlFor="password"
-              className="text-sm font-medium text-slate-300"
+              className="ui-label text-sm font-semibold text-ink"
             >
               Password
             </label>
@@ -151,10 +151,10 @@ export function LoginPage() {
               aria-describedby={
                 fieldErrors.password ? 'password-error' : undefined
               }
-              className="rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white focus:border-brand-500 focus:outline-none"
+              className="ui-edge ui-control border-ink bg-white px-3 py-2 text-sm text-ink"
             />
             {fieldErrors.password && (
-              <p id="password-error" className="text-xs text-rose-400">
+              <p id="password-error" className="text-xs font-semibold text-danger">
                 {fieldErrors.password}
               </p>
             )}
@@ -163,7 +163,7 @@ export function LoginPage() {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="mt-2 flex items-center justify-center gap-2 rounded-md bg-brand-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-60"
+            className="ui-card-sm ui-control ui-label mt-2 flex items-center justify-center gap-2 border-action bg-action px-4 py-2.5 text-sm font-bold text-white transition-transform hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0"
           >
             {isSubmitting && (
               <FontAwesomeIcon

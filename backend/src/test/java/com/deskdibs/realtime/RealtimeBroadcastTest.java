@@ -1,11 +1,15 @@
 package com.deskdibs.realtime;
 
+import com.deskdibs.admin.SeatAdminService;
 import com.deskdibs.booking.Booking;
 import com.deskdibs.booking.BookingRepository;
+import com.deskdibs.booking.BookingService;
+import com.deskdibs.booking.NoShowReleaseService;
 import com.deskdibs.booking.SeatAvailabilityChangedEvent;
 import com.deskdibs.common.AbstractPostgresIntegrationTest;
 import com.deskdibs.common.ControllableClockConfiguration;
 import com.deskdibs.seat.Seat;
+import com.deskdibs.seat.SeatMapState;
 import com.deskdibs.seat.SeatMapView;
 import com.deskdibs.seat.SeatRepository;
 import com.deskdibs.seat.SeatStatus;
@@ -78,6 +82,9 @@ class RealtimeBroadcastTest extends AbstractPostgresIntegrationTest {
     private final PasswordEncoder passwordEncoder;
     private final ApplicationEventPublisher events;
     private final TransactionTemplate transactionTemplate;
+    private final BookingService bookingService;
+    private final NoShowReleaseService noShowRelease;
+    private final SeatAdminService seatAdmin;
     private final int port;
 
     private long contestedSeatId;
@@ -88,6 +95,9 @@ class RealtimeBroadcastTest extends AbstractPostgresIntegrationTest {
                           PasswordEncoder passwordEncoder,
                           ApplicationEventPublisher events,
                           TransactionTemplate transactionTemplate,
+                          BookingService bookingService,
+                          NoShowReleaseService noShowRelease,
+                          SeatAdminService seatAdmin,
                           @LocalServerPort int port) {
         this.users = users;
         this.bookings = bookings;
@@ -95,6 +105,9 @@ class RealtimeBroadcastTest extends AbstractPostgresIntegrationTest {
         this.passwordEncoder = passwordEncoder;
         this.events = events;
         this.transactionTemplate = transactionTemplate;
+        this.bookingService = bookingService;
+        this.noShowRelease = noShowRelease;
+        this.seatAdmin = seatAdmin;
         this.port = port;
     }
 
@@ -196,6 +209,66 @@ class RealtimeBroadcastTest extends AbstractPostgresIntegrationTest {
             assertThat(message).as("the claim over HTTP must produce a broadcast the socket receives").isNotNull();
             assertThat(message.seat().seatId()).isEqualTo(contestedSeatId);
             assertThat(message.seat().occupantDisplayName()).isEqualTo("Frank L.");
+        } finally {
+            session.disconnect();
+        }
+    }
+
+    // ─── Releases that nobody asked for, but everybody has to see ────────────────
+
+    @Test
+    @DisplayName("the no-show release reaches a subscribed client over the wire")
+    void theNoShowReleaseArrivesOnTheTopicOverTheWire() throws Exception {
+        long absentee = person("gina@deskdibs.test", "Gina P.");
+        bookingService.claim(absentee, contestedSeatId, TODAY, null);
+
+        // Subscribe *after* the claim, so the only frame this can catch is the release itself
+        // rather than the broadcast the claim already sent.
+        BlockingQueue<SeatStatusChanged> received = new LinkedBlockingQueue<>();
+        StompSession session = connectAndSubscribe(person("watch3@deskdibs.test", "Watcher Three"),
+                TODAY, received);
+
+        try {
+            assertThat(noShowRelease.releaseNoShows(TODAY))
+                    .as("the seat was claimed and never checked into, so it is a no-show")
+                    .isEqualTo(1);
+
+            SeatStatusChanged message = received.poll(5, TimeUnit.SECONDS);
+            assertThat(message)
+                    .as("a desk reclaimed at the cut-off must reach every open map, or people go on "
+                            + "seeing it as taken by somebody who is not coming in")
+                    .isNotNull();
+            assertThat(message.seat().seatId()).isEqualTo(contestedSeatId);
+            assertThat(message.seat().state()).isEqualTo(SeatMapState.AVAILABLE);
+            assertThat(message.seat().occupantDisplayName())
+                    .as("the released seat is nobody's now")
+                    .isNull();
+        } finally {
+            session.disconnect();
+        }
+    }
+
+    @Test
+    @DisplayName("withdrawing a desk reaches a subscribed client, and takes the booking with it")
+    void withdrawingASeatArrivesOnTheTopicOverTheWire() throws Exception {
+        long booked = person("hank@deskdibs.test", "Hank R.");
+        bookingService.claim(booked, contestedSeatId, TODAY, null);
+
+        BlockingQueue<SeatStatusChanged> received = new LinkedBlockingQueue<>();
+        StompSession session = connectAndSubscribe(person("watch4@deskdibs.test", "Watcher Four"),
+                TODAY, received);
+
+        try {
+            assertThat(seatAdmin.setStatus(contestedSeatId, SeatStatus.BROKEN).bookingsReleased())
+                    .as("the desk was booked for today, so withdrawing it costs that booking")
+                    .isEqualTo(1);
+
+            SeatStatusChanged message = received.poll(5, TimeUnit.SECONDS);
+            assertThat(message).as("a desk leaving the floor plan must repaint every open map").isNotNull();
+            assertThat(message.seat().seatId()).isEqualTo(contestedSeatId);
+            assertThat(message.seat().state())
+                    .as("a withdrawn desk renders as disabled, not as free for the taking")
+                    .isEqualTo(SeatMapState.DISABLED);
         } finally {
             session.disconnect();
         }

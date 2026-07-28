@@ -42,6 +42,8 @@ class SeatMapHorizonTest extends AbstractPostgresIntegrationTest {
     private final TeamRepository teamRepository;
     private final TeamMemberRepository teamMemberRepository;
     private final int horizonDays;
+    private final MutableClock clock;
+    private final OfficeProperties office;
 
     private long alice;
     private long bob;
@@ -65,11 +67,16 @@ class SeatMapHorizonTest extends AbstractPostgresIntegrationTest {
         this.teamRepository = teamRepository;
         this.teamMemberRepository = teamMemberRepository;
         this.horizonDays = office.bookingHorizonDays();
+        this.clock = clock;
+        this.office = office;
         clock.setTo(TODAY.atTime(9, 0).atZone(office.timezone()));
     }
 
     @BeforeEach
     void resetTheOfficeAndItsPeople() {
+        // Back to 09:00, before every cut-off — otherwise a test that moves the clock past the
+        // same-day cut-off would silently change what "today" means for the next one.
+        clock.setTo(TODAY.atTime(9, 0).atZone(office.timezone()));
         bookingRepository.deleteAllInBatch();
         seatReservationRepository.deleteAllInBatch();
         teamMemberRepository.deleteAllInBatch();
@@ -149,7 +156,7 @@ class SeatMapHorizonTest extends AbstractPostgresIntegrationTest {
     void freeSeatsIsNeverNegative() {
         DayAvailabilityView day = horizon(alice).get(0);
         assertThat(day.freeSeats()).isEqualTo(day.bookableSeats() - day.bookedSeats());
-        assertThat(new DayAvailabilityView(TODAY, 2, 5, null, true).freeSeats()).isZero();
+        assertThat(new DayAvailabilityView(TODAY, 2, 5, null, true, true).freeSeats()).isZero();
     }
 
     @Test
@@ -183,6 +190,40 @@ class SeatMapHorizonTest extends AbstractPostgresIntegrationTest {
     }
 
     // ─── Fixtures ────────────────────────────────────────────────────────────────
+
+
+    @Test
+    @DisplayName("before the same-day cut-off the strip still offers today")
+    void offersTodayBeforeTheCutoff() {
+        clock.setTo(TODAY.atTime(office.sameDayCutoffTime().minusMinutes(1)).atZone(office.timezone()));
+
+        List<DayAvailabilityView> strip = seatMapService.bookableHorizon(alice);
+
+        assertThat(strip.get(0).date()).isEqualTo(TODAY);
+        assertThat(strip).hasSize(horizonDays + 1);
+    }
+
+    @Test
+    @DisplayName("past the same-day cut-off the strip starts at tomorrow instead")
+    void dropsTodayAfterTheCutoff() {
+        clock.setTo(TODAY.atTime(office.sameDayCutoffTime().plusMinutes(1)).atZone(office.timezone()));
+
+        List<DayAvailabilityView> strip = seatMapService.bookableHorizon(alice);
+
+        assertThat(strip.get(0).date()).isEqualTo(TODAY.plusDays(1));
+        assertThat(strip).extracting(DayAvailabilityView::date).doesNotContain(TODAY);
+    }
+
+    @Test
+    @DisplayName("passing the cut-off does not extend the far end of the horizon")
+    void theEndOfTheHorizonDoesNotMove() {
+        clock.setTo(TODAY.atTime(office.sameDayCutoffTime().plusHours(3)).atZone(office.timezone()));
+
+        List<DayAvailabilityView> strip = seatMapService.bookableHorizon(alice);
+
+        assertThat(strip.get(strip.size() - 1).date()).isEqualTo(TODAY.plusDays(horizonDays));
+        assertThat(strip).hasSize(horizonDays);
+    }
 
     private List<DayAvailabilityView> horizon(long userId) {
         return seatMapService.availabilityHorizon(userId, TODAY, TODAY.plusDays(horizonDays));

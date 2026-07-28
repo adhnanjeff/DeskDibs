@@ -44,8 +44,8 @@ function SeatHoverCard({ seat, x, y }: { seat: SeatTileModel; x: number; y: numb
       className="pointer-events-none fixed z-50 -translate-x-1/2 -translate-y-full"
       style={{ left: x, top: y - 8 }}
     >
-      <div className="border-2 border-ink bg-paper px-2.5 py-1.5 shadow-brutal-sm">
-        <p className="font-mono text-xs font-bold uppercase tracking-wider text-ink">
+      <div className="ui-edge border-line bg-paper px-2.5 py-1.5 shadow-[var(--dd-shadow-sm)]">
+        <p className="font-mono text-xs font-bold ui-label text-ink">
           {seat.seatLabel}
         </p>
         {seat.occupantName && (
@@ -53,7 +53,7 @@ function SeatHoverCard({ seat, x, y }: { seat: SeatTileModel; x: number; y: numb
         )}
         {/* The state always shows, even when the seat is somebody's — "Dev Employee" alone
             doesn't say whether they have actually turned up. */}
-        <p className="font-mono text-[10px] uppercase tracking-wider text-ink/55">{meta.label}</p>
+        <p className="font-mono text-[10px] ui-label text-ink/55">{meta.label}</p>
       </div>
     </div>
   );
@@ -138,7 +138,7 @@ export function FloorMap({
         ref={viewportRef}
         role="group"
         aria-label="Office floor map. Drag to pan, scroll or pinch to zoom."
-        className="relative w-full cursor-grab touch-none overflow-hidden border-2 border-ink bg-paper-dim active:cursor-grabbing"
+        className="relative w-full cursor-grab touch-none overflow-hidden ui-edge border-line bg-paper-dim active:cursor-grabbing"
         style={{ aspectRatio: `${CANVAS.w} / ${CANVAS.h}` }}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
@@ -201,7 +201,7 @@ function ZoomButton({
       onClick={onClick}
       disabled={disabled}
       aria-label={label}
-      className="flex h-9 w-9 items-center justify-center border-2 border-ink bg-paper text-ink shadow-brutal-sm transition-transform hover:-translate-y-px disabled:opacity-40 disabled:hover:translate-y-0"
+      className="ui-control-icon flex h-9 w-9 items-center justify-center ui-edge border-line bg-paper text-ink shadow-[var(--dd-shadow-sm)] transition-transform hover:-translate-y-px disabled:opacity-40 disabled:hover:translate-y-0"
     >
       <FontAwesomeIcon icon={icon} className="h-4 w-4" aria-hidden="true" />
     </button>

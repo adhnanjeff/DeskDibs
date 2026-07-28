@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useSeatMap } from '../hooks/useSeatMap';
 import { useSeatMapHorizon } from '../hooks/useSeatMapHorizon';
+import { currentOfficeWeek } from '../lib/officeWeek';
 import { useOfficeDateRollover } from '../hooks/useOfficeDateRollover';
 import { useAuth } from '../auth/AuthContext';
 import { SeatMapSkeleton } from '../components/seatmap/SeatMapSkeleton';
@@ -18,7 +19,16 @@ function SeatMapContent() {
   const [socketLive, setSocketLive] = useState(true);
 
   const horizon = useSeatMapHorizon();
-  const { data, isPending, isError, error, refetch } = useSeatMap(selectedDate ?? undefined, {
+
+  // The strip shows one week of the fortnight the server returns, and its first day is what the
+  // map opens on. Not the browser's idea of today, and not the server's either: past the same-day
+  // cut-off the office stops offering today at all, so the first bookable day is tomorrow and the
+  // map has to agree with the strip about that.
+  const week = currentOfficeWeek(horizon.data ?? []);
+  const defaultDate = week[0]?.date;
+  const shownDate = selectedDate ?? defaultDate;
+
+  const { data, isPending, isError, error, refetch } = useSeatMap(shownDate, {
     live: socketLive,
   });
 
@@ -40,10 +50,10 @@ function SeatMapContent() {
 
   return (
     <>
-      {horizon.data && (
+      {week.length > 0 && (
         <DateStrip
-          days={horizon.data}
-          selectedDate={selectedDate ?? data.date ?? null}
+          days={week}
+          selectedDate={shownDate ?? data.date ?? null}
           onSelect={(date) => setSelectedDate(date)}
         />
       )}

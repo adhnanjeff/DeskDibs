@@ -44,7 +44,7 @@ export function ReservationsPage() {
     <div>
       <div className="mb-4">
         <p className="eyebrow text-xs text-ink/50">Team blocks</p>
-        <h1 className="text-3xl font-bold uppercase tracking-tight text-ink sm:text-4xl">
+        <h1 className="ui-title text-ink">
           Reservations
         </h1>
         <p className="mt-1 max-w-2xl text-sm font-semibold text-ink/60">

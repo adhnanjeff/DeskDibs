@@ -45,7 +45,7 @@ export function OfficeOverview({ stats, noShowReleaseTime = '11:00' }: OfficeOve
           label="Occupancy"
           value={`${stats.occupancyPercent}%`}
           detail={`${stats.bookedSeats} booked`}
-          tone="yellow"
+          tone="selected"
         />
         <Stat
           icon={faHourglassHalf}
@@ -54,20 +54,20 @@ export function OfficeOverview({ stats, noShowReleaseTime = '11:00' }: OfficeOve
           detail={
             stats.awaitingCheckIn > 0 ? `release at ${noShowReleaseTime}` : 'everyone is in'
           }
-          tone={stats.awaitingCheckIn > 0 ? 'red' : 'paper'}
+          tone={stats.awaitingCheckIn > 0 ? 'danger' : 'paper'}
         />
       </div>
     </section>
   );
 }
 
-type Tone = 'ink' | 'paper' | 'yellow' | 'red';
+type Tone = 'ink' | 'paper' | 'selected' | 'danger';
 
 const TONE_CLASSES: Record<Tone, string> = {
   ink: 'bg-ink text-paper',
   paper: 'bg-paper text-ink',
-  yellow: 'bg-bauhaus-yellow text-ink',
-  red: 'bg-bauhaus-red text-white',
+  selected: 'bg-selected text-ink',
+  danger: 'bg-danger text-white',
 };
 
 function Stat({
@@ -84,13 +84,13 @@ function Stat({
   tone: Tone;
 }) {
   return (
-    <div className={`border-2 border-ink px-3 py-2.5 shadow-brutal-sm ${TONE_CLASSES[tone]}`}>
+    <div className={`ui-edge border-line px-3 py-2.5 shadow-[var(--dd-shadow-sm)] ${TONE_CLASSES[tone]}`}>
       <p className="eyebrow flex items-center gap-1.5 text-[10px] opacity-75">
         <FontAwesomeIcon icon={icon} className="h-3 w-3" aria-hidden="true" />
         {label}
       </p>
       <p className="font-mono text-2xl font-bold leading-tight">{value}</p>
-      <p className="text-[11px] font-semibold uppercase tracking-wide opacity-70">{detail}</p>
+      <p className="text-[11px] font-semibold ui-label opacity-70">{detail}</p>
     </div>
   );
 }

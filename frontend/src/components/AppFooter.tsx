@@ -10,12 +10,12 @@ export function AppFooter() {
   const year = new Date().getFullYear();
 
   return (
-    <footer className="border-t-4 border-bauhaus-red bg-ink text-paper">
-      <div className="mx-auto flex max-w-[1500px] flex-col gap-2 px-4 py-5 text-xs sm:flex-row sm:items-center sm:justify-between">
-        <span className="flex items-center gap-2 font-mono uppercase tracking-[0.14em]">
+    <footer className="ui-accent-bar border-action bg-ink text-paper">
+      <div className="mx-auto flex max-w-[var(--dd-shell-max)] flex-col gap-2 px-4 py-5 text-xs sm:flex-row sm:items-center sm:justify-between">
+        <span className="ui-wordmark flex items-center gap-2">
           <FontAwesomeIcon
             icon={faChair}
-            className="h-3.5 w-3.5 text-bauhaus-yellow"
+            className="h-3.5 w-3.5 text-selected"
             aria-hidden="true"
           />
           DeskDibs
@@ -23,7 +23,7 @@ export function AppFooter() {
         <p className="text-paper/60">
           Hot-desk booking for the days you come in.
         </p>
-        <p className="font-mono uppercase tracking-wider text-paper/50">
+        <p className="font-mono ui-label text-paper/50">
           © {year} DeskDibs
         </p>
       </div>
