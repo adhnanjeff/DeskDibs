@@ -32,6 +32,27 @@ public interface SeatReservationRepository extends JpaRepository<SeatReservation
     List<SeatReservation> findActiveOnDateFetchTeam(@Param("date") LocalDate date);
 
     /**
+     * Every hold overlapping a date range, as {@code [seatId, startDate, endDate, releaseAtTime]}
+     * rows, for the date strip's per-day held count.
+     *
+     * <p>Projected rather than returning entities, and expanded across days by the caller: a hold is
+     * one row covering a span, so there is no way to group it per day in JPQL, and the strip needs a
+     * number for each day of the horizon. The row count is the number of blocks a manager has
+     * created, not seats × days, so the expansion is cheap.
+     *
+     * <p>Seats out of service are excluded because they are not in the denominator either — the
+     * strip's {@code bookableSeats} already leaves them out, so counting a hold on one would take
+     * the same desk away twice.
+     */
+    @Query("""
+           select r.seat.id, r.startDate, r.endDate, r.releaseAtTime
+             from SeatReservation r
+            where r.startDate <= :to and r.endDate >= :from
+              and r.seat.status = com.deskdibs.seat.SeatStatus.ACTIVE
+           """)
+    List<Object[]> findOverlappingRange(@Param("from") LocalDate from, @Param("to") LocalDate to);
+
+    /**
      * Holds that have not finished yet, with everything the manager UI shows eagerly joined.
      * Expired holds are left out: a block that ended last week is history nobody can act on, and
      * {@code seat_reservation} keeps no status to distinguish it by.

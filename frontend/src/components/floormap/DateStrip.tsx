@@ -63,8 +63,13 @@ function DayButton({
   const iso = day.date ?? '';
   const bookableSeats = day.bookableSeats ?? 0;
   const booked = day.bookedSeats ?? 0;
-  const free = Math.max(0, bookableSeats - booked);
-  const fullness = bookableSeats === 0 ? 0 : Math.round((booked / bookableSeats) * 100);
+  // Desks under a live team hold. Counted against the day exactly as booked ones are: this number
+  // has to be the same number the map draws as available for that date, or the strip contradicts
+  // the floor sitting right beneath it.
+  const held = day.heldSeats ?? 0;
+  const taken = booked + held;
+  const free = Math.max(0, bookableSeats - taken);
+  const fullness = bookableSeats === 0 ? 0 : Math.round((taken / bookableSeats) * 100);
   const yours = day.yourSeatLabel;
   // Whether the office is open — decided by the server, which also refuses a claim on a closed
   // day. This only stops the click; it is not what enforces the rule.
@@ -84,10 +89,12 @@ function DayButton({
     day: 'numeric',
     month: 'long',
   });
+  // Holds are named rather than folded silently into the total, so a day that looks busier than
+  // the booking count explains has an answer on the tile itself.
   const label = open
     ? `${longDate}${isToday ? ' (today)' : ''}: ${free} of ${bookableSeats} desks free${
-        yours ? `. You have ${yours}.` : ''
-      }`
+        held > 0 ? ` (${held} held for teams)` : ''
+      }${yours ? `. You have ${yours}.` : ''}`
     : `${longDate}: the office is closed`;
 
   return (

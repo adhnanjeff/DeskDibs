@@ -170,44 +170,66 @@
     -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue',
     Arial, sans-serif;
 
-  /* Base */
-  --color-canvas: #eaf0f6; /* the blue-grey app canvas */
-  --color-paper: #ffffff; /* cards are pure white, no border needed */
-  --color-paper-dim: #f1f4f8; /* zebra rows, inset panels */
-  --color-ink: #253239; /* desaturated slate, not black */
-  --color-ink-soft: #5a6b75; /* AA on both white and canvas */
-  --color-line: #d3dce4; /* hairline — the proposal barely draws card edges */
+  /*
+   * Base.
+   *
+   * Sampled from the proposal rather than composed to match it. The one rule
+   * that had been missed, and the reason the earlier pass read as "off": the
+   * proposal's SURFACES are neutral greys and its BLUE is spent only on action,
+   * selection and links. Tinting the whole grey ramp blue — #eaf0f6 canvas,
+   * #f1f4f8 rows, #d3dce4 hairlines, none of which appear anywhere in the file
+   * — turned a white product with blue accents into a blue product, which no
+   * amount of getting the accent right afterwards can undo.
+   *
+   * Percentages below are share of painted area across all 24 pages.
+   */
+  --color-canvas: #f8f8f8; /* 12.3% — neutral, a hair off white */
+  --color-paper: #ffffff; /* 75.4% — the product is mostly white */
+  --color-paper-dim: #eff0f1; /* 1.1% — table headers, inset panels */
+  --color-ink: #253238; /* body text, sampled from the glyphs */
+  /*
+   * The proposal's own secondary text is #607d8b (1658 glyphs) — Material Blue
+   * Grey 500. At 4.37:1 on white it misses AA for body text, so this is one
+   * step down the same ramp (BG600) at 5.40:1. Same family, same read, legible.
+   */
+  --color-ink-soft: #546e7a;
+  /* Material Blue Grey 100, between the file's #edeff1 hairline and its #90a4ae
+     control border — one token has to serve both, and a card edge nobody can
+     see is worse than one a shade too present. */
+  --color-line: #cfd8dc;
 
   /* Function */
-  --color-action: #0254fd; /* white label = 5.7:1 */
-  --color-action-deep: #0147d8;
-  --color-selected: #dbe1fc; /* soft blue fill; ink on it = 10.2:1 */
-  --color-selected-deep: #b9c8f7;
-  --color-danger: #a90730; /* stays red — action is blue, danger is not */
-  --color-danger-tint: #f6e6ea;
-  --color-success: #2e821a;
-  --color-success-tint: #edfcea;
-  --color-warning: #a3601d;
-  --color-warning-tint: #fdf4ea;
-  --color-info: #0c73b5;
-  --color-info-tint: #e7f5ff;
+  --color-action: #0254fd; /* sampled exactly; white label = 5.7:1 */
+  --color-action-deep: #0022cc; /* the file's own pressed/darker blue */
+  --color-selected: #ecf5fc; /* the selected table row; ink on it = 12.0:1 */
+  --color-selected-deep: #d3e7f7;
+  --color-danger: #a90730; /* sampled exactly */
+  --color-danger-tint: #ffcdd2; /* sampled exactly */
+  --color-success: #2e821a; /* the file's #4fe12c is a fill, unreadable as text */
+  --color-success-tint: #e8f8e4;
+  --color-warning: #a3601d; /* darkened from the file's #f38f2b for text use */
+  --color-warning-tint: #fdf0e2;
+  --color-info: #0030b9; /* the file's link blue; 9.9:1 on white */
+  --color-info-tint: #ecf5fc;
 
   /* The cool theme's own names, remapped so untouched markup still reads
      correctly: yellow means "selected", red means "the primary action". */
-  --color-bauhaus-yellow: #dbe1fc;
-  --color-bauhaus-yellow-deep: #b9c8f7;
+  --color-bauhaus-yellow: #ecf5fc;
+  --color-bauhaus-yellow-deep: #d3e7f7;
   --color-bauhaus-red: #0254fd;
-  --color-bauhaus-red-deep: #0147d8;
+  --color-bauhaus-red-deep: #0022cc;
   --color-bauhaus-blue: #0254fd;
 
-  /* Rooms: the proposal's tints, flattened into the blue-grey family */
-  --color-room-reception: #e7f5ff;
-  --color-room-meeting: #edfcea;
-  --color-room-cabin: #eae7fa;
-  --color-room-pantry: #fdf4ea;
-  --color-room-server: #e4e0f6;
-  --color-room-collab: #fdeae0;
-  --color-room-utility: #eef1f4;
+  /* Rooms. The proposal has no floor plan, so these are the nearest tint of each
+     of its own status hues — and the non-bookable ones (utility, workspace) stay
+     on the neutral grey ramp rather than drifting blue. */
+  --color-room-reception: #ecf5fc; /* the selected-row blue */
+  --color-room-meeting: #e8f8e4; /* the success green, lightened */
+  --color-room-cabin: #e9e7f6; /* the one hue with no source; kept faint */
+  --color-room-pantry: #fdf0e2; /* the #f38f2b orange, lightened */
+  --color-room-server: #e2e0f2;
+  --color-room-collab: #fbe9dd;
+  --color-room-utility: #eff0f1; /* neutral, same as paper-dim */
   --color-room-workspace: #ffffff;
 
   /* Seat state. Fills are AA-checked against their glyph colour; the hues are
@@ -221,16 +243,16 @@
   --color-seat-disabled: #5c666e; /* out of service — white glyph 5.9:1 */
   --color-seat-pending: #f5b65c; /* ink glyph — 7.4:1 */
 
-  --color-seat-available-tint: #f4f7fa;
-  --color-seat-yours-tint: #e7f5ff;
-  --color-seat-occupied-tint: #eef1f4;
-  --color-seat-team-reserved-tint: #eae7fa;
-  --color-seat-checked-in-tint: #edfcea;
-  --color-seat-disabled-tint: #f1f4f8;
-  --color-seat-pending-tint: #fdf4ea;
+  --color-seat-available-tint: #f8f8f8;
+  --color-seat-yours-tint: #ecf5fc;
+  --color-seat-occupied-tint: #eff0f1;
+  --color-seat-team-reserved-tint: #e9e7f6;
+  --color-seat-checked-in-tint: #e8f8e4;
+  --color-seat-disabled-tint: #eff0f1;
+  --color-seat-pending-tint: #fdf0e2;
 
   --color-brand-500: #0254fd;
-  --color-brand-600: #0147d8;
+  --color-brand-600: #0022cc;
 
   /* Structure: hairline, rounded, softly lifted, sentence case */
   --dd-radius: 6px;

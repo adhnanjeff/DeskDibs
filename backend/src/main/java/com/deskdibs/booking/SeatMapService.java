@@ -19,10 +19,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -90,11 +94,14 @@ public class SeatMapService {
     /**
      * How full each day of the booking horizon is, for the date strip.
      *
-     * <p>Three queries for the whole horizon, not one seat map per day: the number of bookable
-     * desks (constant across the range), one grouped count of bookings per day, and the caller's own
-     * bookings. Team holds are deliberately not subtracted — a held desk is still a desk somebody
-     * could sit at once the block releases, and counting it as unavailable would make a quiet day
-     * look busy.
+     * <p>A handful of queries for the whole horizon, not one seat map per day: the number of
+     * bookable desks (constant across the range), one grouped count of bookings per day, the
+     * caller's own bookings, and the team holds overlapping the range.
+     *
+     * <p>Held desks <em>are</em> subtracted. They were not originally, on the reasoning that a held
+     * desk frees up once the block releases — but the strip is read next to the floor map for the
+     * same date, and a day claiming 102 free beside a map drawing 93 available is simply wrong on
+     * its face. Whichever of the two numbers a person believes, the other one has misled them.
      */
     @Transactional(readOnly = true)
     public List<DayAvailabilityView> availabilityHorizon(long userId, LocalDate from, LocalDate to) {
@@ -107,6 +114,8 @@ public class SeatMapService {
                 .findMyActiveBookingsBetweenFetchSeat(userId, from, to).stream()
                 .collect(Collectors.toMap(Booking::getBookingDate, b -> b.getSeat().getLabel(), (a, b) -> a));
 
+        Map<LocalDate, Integer> heldByDate = enforcedHoldsByDate(from, to);
+
         LocalDate today = officeClock.today();
         List<DayAvailabilityView> horizon = new ArrayList<>();
         for (LocalDate day = from; !day.isAfter(to); day = day.plusDays(1)) {
@@ -114,11 +123,64 @@ public class SeatMapService {
                     day,
                     bookableSeats,
                     bookedByDate.getOrDefault(day, 0L).intValue(),
+                    heldByDate.getOrDefault(day, 0),
                     mySeatByDate.get(day),
                     office.isWorkingDay(day),
                     day.equals(today)));
         }
         return horizon;
+    }
+
+    /**
+     * Per day of the range, how many in-service desks a team hold still takes off the board.
+     *
+     * <p>Three things have to be true of this count for the strip to agree with the map, and each
+     * is a separate way of getting it wrong:
+     *
+     * <ul>
+     *   <li>a hold spans dates, so it is expanded day by day rather than counted once;
+     *   <li>a hold past its release time on the date it covers is no longer enforced — the same
+     *       {@link OfficeClock#isBefore} test {@link #firstEnforcedHold} uses, so the strip and the
+     *       map cannot disagree about when a block lapses;
+     *   <li>a held desk that is also booked is one desk, not two. That overlap is the normal case,
+     *       not a corner case: the point of a hold is that the team then books into it.
+     * </ul>
+     *
+     * <p>Counting distinct seat ids rather than rows also covers two holds landing on the same desk.
+     */
+    private Map<LocalDate, Integer> enforcedHoldsByDate(LocalDate from, LocalDate to) {
+        List<Object[]> holds = reservations.findOverlappingRange(from, to);
+        if (holds.isEmpty()) {
+            return Map.of();
+        }
+
+        Set<Long> heldSeatIds = holds.stream().map(row -> (Long) row[0]).collect(Collectors.toSet());
+        Map<LocalDate, Set<Long>> bookedHeldSeats = bookings
+                .findActiveDatesForSeats(from, to, heldSeatIds).stream()
+                .collect(Collectors.groupingBy(row -> (LocalDate) row[0],
+                        Collectors.mapping(row -> (Long) row[1], Collectors.toSet())));
+
+        Map<LocalDate, Set<Long>> seatsByDate = new HashMap<>();
+        for (Object[] hold : holds) {
+            Long seatId = (Long) hold[0];
+            LocalDate start = (LocalDate) hold[1];
+            LocalDate end = (LocalDate) hold[2];
+            LocalTime releaseAt = (LocalTime) hold[3];
+
+            LocalDate last = end.isBefore(to) ? end : to;
+            for (LocalDate day = start.isAfter(from) ? start : from; !day.isAfter(last); day = day.plusDays(1)) {
+                if (!officeClock.isBefore(day, releaseAt)) {
+                    continue;
+                }
+                if (bookedHeldSeats.getOrDefault(day, Set.of()).contains(seatId)) {
+                    continue;
+                }
+                seatsByDate.computeIfAbsent(day, ignored -> new HashSet<>()).add(seatId);
+            }
+        }
+
+        return seatsByDate.entrySet().stream()
+                .collect(Collectors.toMap(Map.Entry::getKey, entry -> entry.getValue().size()));
     }
 
     /** The whole map for one date, grouped floor → zone → table → seat in stable render order. */

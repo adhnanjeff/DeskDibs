@@ -18,16 +18,17 @@ function Swatch({ state }: { state: SeatDisplayState }) {
   return (
     <span className="flex items-center gap-1.5">
       <span
-        className="flex h-4 w-4 items-center justify-center ui-edge border-ink"
+        className="flex h-[18px] w-[18px] items-center justify-center ui-edge border-ink"
         style={{ background: meta.fill }}
       >
         <FontAwesomeIcon
           icon={meta.icon}
           aria-hidden="true"
-          style={{ color: glyph, width: 8, height: 8 }}
+          style={{ color: glyph, width: 9, height: 9 }}
         />
       </span>
-      <span className="font-mono text-[10px] font-semibold ui-label text-ink/80">
+      {/* 12px, the floor of the proposal's label scale — 10px was under it. */}
+      <span className="font-mono text-xs font-semibold ui-label text-ink/80">
         {meta.label}
       </span>
     </span>

@@ -117,8 +117,9 @@ export const MOCK_BOOKINGS: BookingResponse[] = [
  * to keep in step with MOCK_SEATMAP.
  */
 export const MOCK_HORIZON: DayAvailability[] = [
-  { date: '2026-07-24', bookableSeats: 102, bookedSeats: 2, yourSeatLabel: 'L1-A2', bookable: true },
-  { date: '2026-07-25', bookableSeats: 102, bookedSeats: 51, yourSeatLabel: null, bookable: true },
+  { date: '2026-07-24', bookableSeats: 102, bookedSeats: 2, heldSeats: 0, yourSeatLabel: 'L1-A2', bookable: true },
+  // Team holds on top of bookings — the case where "free" is not simply bookable minus booked.
+  { date: '2026-07-25', bookableSeats: 102, bookedSeats: 51, heldSeats: 9, yourSeatLabel: null, bookable: true },
   // A Saturday: present in the strip, but shut.
-  { date: '2026-07-26', bookableSeats: 102, bookedSeats: 0, yourSeatLabel: null, bookable: false },
+  { date: '2026-07-26', bookableSeats: 102, bookedSeats: 0, heldSeats: 0, yourSeatLabel: null, bookable: false },
 ];

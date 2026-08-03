@@ -11,14 +11,21 @@ export type ThemeName = 'cool' | 'office';
 
 export const THEME_STORAGE_KEY = 'deskdibs-theme';
 
-export const DEFAULT_THEME: ThemeName = 'cool';
+/**
+ * What somebody sees before they have ever touched the toggle. `office`, because this is
+ * deployed inside an office whose house style it matches — `cool` is the opt-in, not the norm.
+ */
+export const DEFAULT_THEME: ThemeName = 'office';
 
 export function readStoredTheme(): ThemeName {
   if (typeof window === 'undefined') return DEFAULT_THEME;
   try {
-    return window.localStorage.getItem(THEME_STORAGE_KEY) === 'office'
-      ? 'office'
-      : DEFAULT_THEME;
+    const stored = window.localStorage.getItem(THEME_STORAGE_KEY);
+    // Both names are matched explicitly. Testing only for the non-default one — which is what
+    // this did while `cool` was the default — silently overrides anybody who deliberately chose
+    // the other theme the moment the default changes, and a preference that ignores you is worse
+    // than no preference at all.
+    return stored === 'office' || stored === 'cool' ? stored : DEFAULT_THEME;
   } catch {
     // Private mode / storage disabled — fall back rather than break boot.
     return DEFAULT_THEME;

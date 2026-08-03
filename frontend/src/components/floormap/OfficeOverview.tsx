@@ -84,13 +84,18 @@ function Stat({
   tone: Tone;
 }) {
   return (
-    <div className={`ui-edge border-line px-3 py-2.5 shadow-[var(--dd-shadow-sm)] ${TONE_CLASSES[tone]}`}>
-      <p className="eyebrow flex items-center gap-1.5 text-[10px] opacity-75">
-        <FontAwesomeIcon icon={icon} className="h-3 w-3" aria-hidden="true" />
+    /*
+      Sized against the proposal's own type scale, which runs 14px for body and
+      12–13px for labels — the 10px and 11px here were below anything in it, and
+      these four numbers are the first thing anybody reads on the page.
+    */
+    <div className={`ui-edge border-line px-3.5 py-3 shadow-[var(--dd-shadow-sm)] ${TONE_CLASSES[tone]}`}>
+      <p className="eyebrow flex items-center gap-1.5 text-xs opacity-75">
+        <FontAwesomeIcon icon={icon} className="h-3.5 w-3.5" aria-hidden="true" />
         {label}
       </p>
-      <p className="font-mono text-2xl font-bold leading-tight">{value}</p>
-      <p className="text-[11px] font-semibold ui-label opacity-70">{detail}</p>
+      <p className="font-mono text-3xl font-bold leading-tight">{value}</p>
+      <p className="text-[13px] font-semibold ui-label opacity-70">{detail}</p>
     </div>
   );
 }

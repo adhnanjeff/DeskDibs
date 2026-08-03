@@ -532,6 +532,11 @@ export interface components {
              * @example 43
              */
             bookedSeats?: number;
+            /**
+             * Format: int32
+             * @example 9
+             */
+            heldSeats?: number;
             /** @example R5-A1 */
             yourSeatLabel?: string | null;
             /** @example true */

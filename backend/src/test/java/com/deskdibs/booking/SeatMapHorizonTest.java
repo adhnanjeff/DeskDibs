@@ -6,13 +6,17 @@ import com.deskdibs.common.MutableClock;
 import com.deskdibs.common.OfficeProperties;
 import com.deskdibs.seat.Seat;
 import com.deskdibs.seat.SeatRepository;
+import com.deskdibs.seat.SeatReservation;
 import com.deskdibs.seat.SeatReservationRepository;
 import com.deskdibs.seat.SeatStatus;
+import com.deskdibs.team.Team;
+import com.deskdibs.team.TeamMember;
 import com.deskdibs.team.TeamMemberRepository;
 import com.deskdibs.team.TeamRepository;
 import com.deskdibs.user.AppUser;
 import com.deskdibs.user.AppUserRepository;
 import com.deskdibs.user.UserRole;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -88,6 +92,18 @@ class SeatMapHorizonTest extends AbstractPostgresIntegrationTest {
         bob = person("bob@deskdibs.test", "Bob T.");
     }
 
+    /**
+     * Holds would otherwise outlive this class. {@code @BeforeEach} only promises a clean slate to
+     * the next test in <em>this</em> class; the database is shared with every other one, and a
+     * leftover {@code seat_reservation} both takes a desk off the map they build and — through
+     * {@code fk_seat_reservation_creator}, which is RESTRICT — stops them deleting the user that
+     * created it.
+     */
+    @AfterEach
+    void leaveNoHoldsBehind() {
+        seatReservationRepository.deleteAllInBatch();
+    }
+
     @Test
     @DisplayName("returns one entry per bookable day, today first, with no gaps")
     void coversTheWholeHorizonOneDayAtATime() {
@@ -156,7 +172,77 @@ class SeatMapHorizonTest extends AbstractPostgresIntegrationTest {
     void freeSeatsIsNeverNegative() {
         DayAvailabilityView day = horizon(alice).get(0);
         assertThat(day.freeSeats()).isEqualTo(day.bookableSeats() - day.bookedSeats());
-        assertThat(new DayAvailabilityView(TODAY, 2, 5, null, true, true).freeSeats()).isZero();
+        assertThat(new DayAvailabilityView(TODAY, 2, 5, 0, null, true, true).freeSeats()).isZero();
+        assertThat(new DayAvailabilityView(TODAY, 2, 1, 4, null, true, true).freeSeats()).isZero();
+    }
+
+    // ─── Team holds against the strip's free count ───────────────────────────────
+
+    @Test
+    @DisplayName("a team hold takes its desks off the day's free count, for every day it covers")
+    void heldDesksAreNotCountedAsFree() {
+        Team platform = teamRepository.saveAndFlush(new Team("Platform", user(alice)));
+        hold(platform, "R2-A1", TODAY, TODAY.plusDays(1));
+        hold(platform, "R2-A2", TODAY, TODAY);
+
+        List<DayAvailabilityView> horizon = horizon(alice);
+        int bookable = horizon.get(0).bookableSeats();
+
+        assertThat(horizon.get(0).heldSeats()).isEqualTo(2);
+        assertThat(horizon.get(0).freeSeats()).isEqualTo(bookable - 2);
+        assertThat(horizon.get(1).heldSeats()).as("the two-day hold still applies tomorrow").isEqualTo(1);
+        assertThat(horizon.get(2).heldSeats()).as("and stops the day after it ends").isZero();
+    }
+
+    @Test
+    @DisplayName("a desk that is both held and booked is one desk gone, not two")
+    void aBookedHeldDeskIsCountedOnce() {
+        Team platform = teamRepository.saveAndFlush(new Team("Platform", user(alice)));
+        hold(platform, "R2-A1", TODAY, TODAY);
+        hold(platform, "R2-A2", TODAY, TODAY);
+        // Alice is on Platform, so she is allowed to claim into her own team's block.
+        teamMemberRepository.saveAndFlush(new TeamMember(platform, user(alice)));
+        bookingService.claim(alice, seatId("R2-A1"), TODAY, null);
+
+        DayAvailabilityView today = horizon(alice).get(0);
+
+        assertThat(today.bookedSeats()).isEqualTo(1);
+        assertThat(today.heldSeats()).as("R2-A1 is already counted as booked").isEqualTo(1);
+        assertThat(today.freeSeats()).isEqualTo(today.bookableSeats() - 2);
+    }
+
+    @Test
+    @DisplayName("past its release time a hold stops being counted, exactly as the map stops drawing it")
+    void aLapsedHoldGivesItsDeskBack() {
+        Team platform = teamRepository.saveAndFlush(new Team("Platform", user(alice)));
+        SeatReservation held = hold(platform, "R2-A1", TODAY, TODAY);
+
+        assertThat(horizon(alice).get(0).heldSeats()).isEqualTo(1);
+
+        clock.setTo(TODAY.atTime(held.getReleaseAtTime().plusMinutes(1)).atZone(office.timezone()));
+
+        assertThat(horizon(alice).get(0).heldSeats())
+                .as("the soft release is a clock comparison, so no job has to have run")
+                .isZero();
+        assertThat(horizon(alice).get(1).heldSeats())
+                .as("and it never applied to tomorrow anyway")
+                .isZero();
+    }
+
+    @Test
+    @DisplayName("a hold on an out-of-service desk does not take the same desk away twice")
+    void holdsOnDisabledDesksAreIgnored() {
+        Team platform = teamRepository.saveAndFlush(new Team("Platform", user(alice)));
+        hold(platform, "R2-A1", TODAY, TODAY);
+
+        Seat broken = seat("R2-A1");
+        broken.setStatus(SeatStatus.BROKEN);
+        seatRepository.saveAndFlush(broken);
+
+        DayAvailabilityView today = horizon(alice).get(0);
+
+        assertThat(today.heldSeats()).as("it already left the denominator").isZero();
+        assertThat(today.freeSeats()).isEqualTo(today.bookableSeats());
     }
 
     @Test
@@ -245,6 +331,16 @@ class SeatMapHorizonTest extends AbstractPostgresIntegrationTest {
 
     private Seat seat(String label) {
         return seatRepository.findByLabel(label).orElseThrow();
+    }
+
+    private AppUser user(long id) {
+        return appUserRepository.findById(id).orElseThrow();
+    }
+
+    /** A block on one desk, with the default release time the manager UI would give it. */
+    private SeatReservation hold(Team team, String label, LocalDate from, LocalDate to) {
+        return seatReservationRepository
+                .saveAndFlush(new SeatReservation(seat(label), team, from, to, user(alice)));
     }
 
     private long seatId(String label) {

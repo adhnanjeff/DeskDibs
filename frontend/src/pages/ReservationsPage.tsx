@@ -12,8 +12,23 @@ type ReservationReport = components['schemas']['ReservationReport'];
 
 function ReservationsContent() {
   const { user } = useAuth();
-  const { data, isPending, isError, error, refetch } = useSeatMap();
   const [report, setReport] = useState<ReservationReport | null>(null);
+  // Null until the manager picks a range, which is also what makes the first fetch ask for no
+  // date at all — the server answers with its own today, and the client never names one itself.
+  const [range, setRange] = useState<{ from: string; to: string } | null>(null);
+
+  // The office's own today: whatever date the server fills in when asked for none. Read from its
+  // own query rather than remembered from the first render, so there is no stale copy to drift.
+  const officeToday = useSeatMap().data?.date ?? '';
+
+  // The map has to be the map of the day being held, not of today. Rendering today's floor while
+  // the form says next Tuesday shows every desk free and hides the ones already gone, so a
+  // manager picks a block against availability that is not the availability they are booking.
+  //
+  // Undefined while the range is today's, so this shares the cache entry above instead of asking
+  // for the same floor a second time under a spelled-out date.
+  const dateParam = range && range.from !== officeToday ? range.from : undefined;
+  const { data, isPending, isError, error, refetch } = useSeatMap(dateParam);
 
   if (isPending) return <SeatMapSkeleton />;
 
@@ -33,6 +48,10 @@ function ReservationsContent() {
       <ReservationWorkspace
         seatMap={data}
         currentUserId={user?.id ?? null}
+        officeToday={officeToday || (data.date ?? '')}
+        startDate={range?.from ?? data.date ?? ''}
+        endDate={range?.to ?? data.date ?? ''}
+        onChangeRange={(from, to) => setRange({ from, to })}
         onReport={setReport}
       />
     </div>

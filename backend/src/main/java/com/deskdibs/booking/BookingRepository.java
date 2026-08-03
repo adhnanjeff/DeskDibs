@@ -7,6 +7,7 @@ import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -129,6 +130,25 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
             group by b.bookingDate
            """)
     List<Object[]> countActiveByDateBetween(@Param("from") LocalDate from, @Param("to") LocalDate to);
+
+    /**
+     * Which of a given set of seats are already claimed on each day of a range, as
+     * {@code [date, seatId]} rows.
+     *
+     * <p>Only used to stop the date strip counting one desk twice. A team hold exists so the team
+     * can then book those desks, so booked and held overlap constantly; adding both counts would
+     * make a day look emptier than the floor map for it. The seat set passed in is the held seats
+     * alone, so this stays a handful of rows rather than the whole horizon's bookings.
+     */
+    @Query("""
+           select b.bookingDate, b.seat.id
+             from Booking b
+            where b.bookingDate between :from and :to and b.status = 'ACTIVE'
+              and b.seat.id in :seatIds
+           """)
+    List<Object[]> findActiveDatesForSeats(@Param("from") LocalDate from,
+                                           @Param("to") LocalDate to,
+                                           @Param("seatIds") Collection<Long> seatIds);
 
     /** The caller's own live bookings across the horizon, so the strip can mark their days. */
     @Query("""

@@ -142,12 +142,22 @@ const SHAFT_H = 62;
 const FIRE_EXIT_Y = SHAFT_Y + SHAFT_H + COLUMN_GAP;
 
 /**
- * How far the fire-exit landing and the entrance lobby stand proud of the building line. On the
- * real plan both break the rectangle — the fire exit to the left, the entry to the right — and
- * flattening them was what made the drawn floor read as a box rather than as this floor.
+ * The right column, top to bottom: the entrance lobby, reception, the big meeting room, and the
+ * service area. Stacked the same way the left column is — one shared gap between blocks, the last
+ * one deriving its height so the column ends flush with the workspace.
+ *
+ * <p>The entry and the fire exit used to stand proud of the building line, because on the real plan
+ * both break the rectangle. Drawn at this scale that read as misalignment rather than as detail:
+ * the entry sat six units above the top corridor and eighteen past the right edge every other room
+ * on that side shares, so the eye saw a box that had slipped. Both are on the building line now.
  */
-const OVERHANG_X = 4;
-const ENTRY_OVERHANG = 18;
+const RIGHT_GAP = COLUMN_GAP;
+const ENTRY_H = 96;
+const RECEPTION_Y = TOP_Y + ENTRY_H + RIGHT_GAP;
+const RECEPTION_H = 90;
+const RIGHT_MEETING_Y = RECEPTION_Y + RECEPTION_H + RIGHT_GAP;
+const RIGHT_MEETING_H = 150;
+const SERVICE_Y = RIGHT_MEETING_Y + RIGHT_MEETING_H + RIGHT_GAP;
 
 // Rooms across the top corridor, right of the pantry. The 4th room (after the
 // pantry and two manager cabins) is the server room, per the finalized plan.
@@ -175,19 +185,18 @@ export const ROOMS: Room[] = [
   { id: 'pantry', label: 'Dry Pantry', category: 'pantry', x: LEFT_X, y: TOP_Y, w: LEFT_W, h: PANTRY_H },
   ...topStrip,
 
-  // Right side: the walk-in entrance juts out at the top, then a small reception,
-  // a larger meeting room, and the service area at the bottom.
-  { id: 'entrance', label: 'Office Entry', category: 'utility', x: RIGHT_X, y: TOP_Y - 6, w: RIGHT_W + ENTRY_OVERHANG, h: 100 },
-  { id: 'reception', label: 'Reception', category: 'reception', x: RIGHT_X, y: 118, w: RIGHT_W, h: 92 },
-  { id: 'right-meeting', label: '12P Meeting', category: 'meeting', x: RIGHT_X, y: 214, w: RIGHT_W, h: 150 },
-  { id: 'service', label: 'Service Area', category: 'utility', x: RIGHT_X, y: 368, w: RIGHT_W, h: WS_BOTTOM - 368 },
+  // Right side, top to bottom: the walk-in entrance, a small reception, a larger meeting room,
+  // and the service area. One building line — every block starts at RIGHT_X and is RIGHT_W wide.
+  { id: 'entrance', label: 'Office Entry', category: 'utility', x: RIGHT_X, y: TOP_Y, w: RIGHT_W, h: ENTRY_H },
+  { id: 'reception', label: 'Reception', category: 'reception', x: RIGHT_X, y: RECEPTION_Y, w: RIGHT_W, h: RECEPTION_H },
+  { id: 'right-meeting', label: '12P Meeting', category: 'meeting', x: RIGHT_X, y: RIGHT_MEETING_Y, w: RIGHT_W, h: RIGHT_MEETING_H },
+  { id: 'service', label: 'Service Area', category: 'utility', x: RIGHT_X, y: SERVICE_Y, w: RIGHT_W, h: WS_BOTTOM - SERVICE_Y },
 
-  // Left utilities below the pantry — no toilets on this floor. The fire exit is the smallest
-  // of the three and, like the real floor, its landing juts out past the building line: it is
-  // drawn wider than the column and starting left of LEFT_X.
+  // Left utilities below the pantry — no toilets on this floor. The fire exit is the smallest of
+  // the three and, like every other block in this column, sits on the building line at LEFT_X.
   { id: 'fire-staircase', label: 'Fire Staircase', category: 'utility', x: LEFT_X, y: STAIRCASE_Y, w: LEFT_W, h: STAIRCASE_H },
   { id: 'electrical', label: 'Elec / PHE Shaft', category: 'utility', x: LEFT_X, y: SHAFT_Y, w: LEFT_W, h: SHAFT_H },
-  { id: 'fire-exit', label: 'Fire Exit', category: 'exit', x: OVERHANG_X, y: FIRE_EXIT_Y, w: LEFT_W + (LEFT_X - OVERHANG_X), h: WS_BOTTOM - FIRE_EXIT_Y },
+  { id: 'fire-exit', label: 'Fire Exit', category: 'exit', x: LEFT_X, y: FIRE_EXIT_Y, w: LEFT_W, h: WS_BOTTOM - FIRE_EXIT_Y },
 
   { id: 'balcony', label: 'Open Balcony', category: 'balcony', x: LEFT_X, y: WS_BOTTOM + WS_BOTTOM_GAP, w: 1192, h: 84, spread: true },
 
