@@ -9,7 +9,33 @@ export type SeatStatus = components['schemas']['UpdateSeatStatusRequest']['statu
 export type UserActivationReport = components['schemas']['UserActivationReport'];
 export type SeatStatusChangeReport = components['schemas']['SeatStatusChangeReport'];
 
+export type DayOccupancyReport = components['schemas']['DayOccupancyReport'];
+
 const ADMIN_USERS_KEY = ['admin', 'users'] as const;
+
+/**
+ * GET /api/admin/reports/occupancy — who sat where on one day.
+ *
+ * <p>Disabled until a date is chosen, so opening the screen does not silently report on today
+ * before anybody asked it to. `staleTime: Infinity` because a past day cannot change: refetching
+ * the 4th on every window focus is work that can only ever return the same rows.
+ */
+export function useOccupancyReport(date: string | null) {
+  return useQuery({
+    queryKey: ['admin', 'occupancy', date],
+    enabled: date != null && date !== '',
+    staleTime: Number.POSITIVE_INFINITY,
+    queryFn: async () => {
+      const { data, error } = await apiClient.GET('/api/admin/reports/occupancy', {
+        params: { query: { date: date as string } },
+      });
+      if (error || !data) {
+        throw new Error(getErrorMessage(error, 'Could not build that report.'));
+      }
+      return data;
+    },
+  });
+}
 
 /**
  * Everything an administrative change can invalidate.

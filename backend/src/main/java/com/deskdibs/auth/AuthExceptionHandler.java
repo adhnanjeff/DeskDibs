@@ -14,6 +14,7 @@ import com.deskdibs.booking.BookingNotActiveException;
 import com.deskdibs.booking.BookingNotFoundException;
 import com.deskdibs.booking.BookingUserNotFoundException;
 import com.deskdibs.booking.CheckInNotForTodayException;
+import com.deskdibs.booking.CheckInNotOpenYetException;
 import com.deskdibs.booking.DateNotAWorkingDayException;
 import com.deskdibs.booking.DateOutsideBookingWindowException;
 import com.deskdibs.booking.IdempotencyKeyConflictException;
@@ -115,7 +116,8 @@ public class AuthExceptionHandler {
             case SEAT_RESERVED_FOR_TEAM, BOOKING_ACCESS_DENIED -> HttpStatus.FORBIDDEN;
             case BOOKING_NOT_FOUND, SEAT_NOT_FOUND, USER_NOT_FOUND -> HttpStatus.NOT_FOUND;
             case SEAT_ALREADY_BOOKED, ALREADY_BOOKED_THAT_DAY, SEAT_NOT_BOOKABLE, BOOKING_NOT_ACTIVE,
-                 ALREADY_CHECKED_IN, CHECK_IN_NOT_FOR_TODAY, IDEMPOTENCY_KEY_CONFLICT -> HttpStatus.CONFLICT;
+                 ALREADY_CHECKED_IN, CHECK_IN_NOT_FOR_TODAY, CHECK_IN_NOT_OPEN_YET,
+                 IDEMPOTENCY_KEY_CONFLICT -> HttpStatus.CONFLICT;
         };
     }
 
@@ -132,6 +134,7 @@ public class AuthExceptionHandler {
             case BOOKING_NOT_ACTIVE -> "This booking is no longer active.";
             case BOOKING_ACCESS_DENIED -> ACCESS_DENIED_MESSAGE;
             case CHECK_IN_NOT_FOR_TODAY -> "Check-in is only allowed on the day of the booking.";
+            case CHECK_IN_NOT_OPEN_YET -> "Check-in has not opened yet this morning.";
             case ALREADY_CHECKED_IN -> "This booking has already been checked in.";
             case SEAT_NOT_FOUND -> "No seat was found with that id.";
             case USER_NOT_FOUND -> "No user was found with that id.";
@@ -190,6 +193,10 @@ public class AuthExceptionHandler {
         }
         if (refusal instanceof CheckInNotForTodayException e) {
             return details("bookingId", e.getBookingId(), "bookingDate", e.getBookingDate(), "today", e.getToday());
+        }
+        if (refusal instanceof CheckInNotOpenYetException e) {
+            return details("bookingId", e.getBookingId(), "opensAt", e.getOpensAt(),
+                    "officeTimeNow", e.getOfficeTimeNow());
         }
         if (refusal instanceof IdempotencyKeyConflictException e) {
             return details(

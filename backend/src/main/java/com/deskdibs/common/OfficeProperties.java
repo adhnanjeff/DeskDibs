@@ -30,6 +30,10 @@ import java.util.Set;
  *                             {@code seat_reservation} row carries its own, which wins.
  * @param noShowReleaseTime    when an un-checked-in booking goes back into the pool, read by
  *                             {@code NoShowReleaseScheduler}.
+ * @param checkInOpensTime     the earliest hour a booking may be checked in. Without it check-in
+ *                             opens at midnight, which makes it worthless as evidence of turning
+ *                             up: nothing stops somebody claiming their desk at 00:05 from home and
+ *                             surviving the 11:00 release without ever entering the building.
  * @param sameDayCutoffTime    the time of day after which today stops being offered as a bookable
  *                             day. Past it the working day is underway and the no-show release has
  *                             already recycled the desks nobody turned up for, so a strip still
@@ -53,6 +57,8 @@ public record OfficeProperties(
         @NotNull LocalTime teamBlockReleaseTime,
 
         @NotNull LocalTime noShowReleaseTime,
+
+        @NotNull LocalTime checkInOpensTime,
 
         @NotNull LocalTime sameDayCutoffTime,
 

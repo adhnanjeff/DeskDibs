@@ -172,8 +172,8 @@ class SeatMapHorizonTest extends AbstractPostgresIntegrationTest {
     void freeSeatsIsNeverNegative() {
         DayAvailabilityView day = horizon(alice).get(0);
         assertThat(day.freeSeats()).isEqualTo(day.bookableSeats() - day.bookedSeats());
-        assertThat(new DayAvailabilityView(TODAY, 2, 5, 0, null, true, true).freeSeats()).isZero();
-        assertThat(new DayAvailabilityView(TODAY, 2, 1, 4, null, true, true).freeSeats()).isZero();
+        assertThat(new DayAvailabilityView(TODAY, 2, 5, 0, null, true, null, true).freeSeats()).isZero();
+        assertThat(new DayAvailabilityView(TODAY, 2, 1, 4, null, true, null, true).freeSeats()).isZero();
     }
 
     // ─── Team holds against the strip's free count ───────────────────────────────
@@ -290,14 +290,46 @@ class SeatMapHorizonTest extends AbstractPostgresIntegrationTest {
     }
 
     @Test
-    @DisplayName("past the same-day cut-off the strip starts at tomorrow instead")
-    void dropsTodayAfterTheCutoff() {
+    @DisplayName("past the cut-off today stays in the strip instead of being deleted from it")
+    void keepsTodayAfterTheCutoff() {
+        clock.setTo(TODAY.atTime(office.sameDayCutoffTime().plusMinutes(1)).atZone(office.timezone()));
+
+        List<DayAvailabilityView> strip = seatMapService.bookableHorizon(alice);
+        DayAvailabilityView today = strip.get(0);
+
+        assertThat(today.date()).isEqualTo(TODAY);
+        assertThat(today.today()).isTrue();
+        assertThat(today.note()).isEqualTo(DayAvailabilityView.DayNote.DAY_UNDERWAY);
+        assertThat(strip).hasSize(horizonDays + 1);
+    }
+
+    @Test
+    @DisplayName("today past the cut-off is still bookable, because the release just freed desks for it")
+    void todayStaysBookableAfterTheCutoff() {
+        clock.setTo(TODAY.atTime(office.sameDayCutoffTime().plusMinutes(1)).atZone(office.timezone()));
+
+        assertThat(seatMapService.bookableHorizon(alice).get(0).bookable())
+                .as("closing today would strand every desk the 11:00 no-show release hands back")
+                .isTrue();
+
+        BookingView lateArrival = bookingService.claim(alice, seatId("R2-A1"), TODAY, null);
+
+        assertThat(lateArrival.bookingDate()).isEqualTo(TODAY);
+    }
+
+    @Test
+    @DisplayName("a shut weekend and a day merely underway are told apart")
+    void noteDistinguishesWeekendFromCutoff() {
         clock.setTo(TODAY.atTime(office.sameDayCutoffTime().plusMinutes(1)).atZone(office.timezone()));
 
         List<DayAvailabilityView> strip = seatMapService.bookableHorizon(alice);
 
-        assertThat(strip.get(0).date()).isEqualTo(TODAY.plusDays(1));
-        assertThat(strip).extracting(DayAvailabilityView::date).doesNotContain(TODAY);
+        // DEFAULT_TODAY is a Monday, so index 5 is the Saturday.
+        assertThat(strip.get(0).note()).isEqualTo(DayAvailabilityView.DayNote.DAY_UNDERWAY);
+        assertThat(strip.get(0).bookable()).isTrue();
+        assertThat(strip.get(5).note()).isEqualTo(DayAvailabilityView.DayNote.OFFICE_CLOSED);
+        assertThat(strip.get(5).bookable()).isFalse();
+        assertThat(strip.get(1).note()).as("an ordinary open day carries no note").isNull();
     }
 
     @Test
@@ -308,7 +340,7 @@ class SeatMapHorizonTest extends AbstractPostgresIntegrationTest {
         List<DayAvailabilityView> strip = seatMapService.bookableHorizon(alice);
 
         assertThat(strip.get(strip.size() - 1).date()).isEqualTo(TODAY.plusDays(horizonDays));
-        assertThat(strip).hasSize(horizonDays);
+        assertThat(strip).hasSize(horizonDays + 1);
     }
 
     private List<DayAvailabilityView> horizon(long userId) {

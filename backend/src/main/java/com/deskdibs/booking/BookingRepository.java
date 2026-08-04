@@ -88,6 +88,24 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     List<Booking> findByBookingDateAndStatusFetchUser(@Param("bookingDate") LocalDate bookingDate,
                                                       @Param("status") BookingStatus status);
 
+    /**
+     * Every booking on one date whatever became of it, with seat and user joined, for the admin's
+     * day report.
+     *
+     * <p>Unlike the seat map's query this does not filter on {@code ACTIVE}. The map shows what can
+     * be booked, so a cancelled desk is simply free again; the report shows what happened, and a
+     * desk somebody gave up or never turned up for is part of that. Ordered by seat so the output
+     * reads down the floor rather than in insertion order.
+     */
+    @Query("""
+           select b from Booking b
+           join fetch b.seat
+           join fetch b.user
+           where b.bookingDate = :date
+           order by b.seat.label asc
+           """)
+    List<Booking> findAllOnDateFetchSeatAndUser(@Param("date") LocalDate date);
+
     /** The caller's own bookings in a date range, with the seat eagerly joined for its label. */
     @Query("""
            select b from Booking b

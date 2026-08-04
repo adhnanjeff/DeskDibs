@@ -4,6 +4,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
 import java.util.List;
 
 public interface TeamMemberRepository extends JpaRepository<TeamMember, TeamMemberId> {
@@ -13,6 +14,19 @@ public interface TeamMemberRepository extends JpaRepository<TeamMember, TeamMemb
     List<TeamMember> findByIdTeamId(Long teamId);
 
     boolean existsByIdTeamIdAndIdUserId(Long teamId, Long userId);
+
+    /**
+     * Team names for a set of people, as {@code [userId, teamName]} rows — one query for a whole
+     * report rather than one per occupant, which is what walking {@code findByIdUserId} per row
+     * would cost. Sorted so a person on two teams reads the same way every time it runs.
+     */
+    @Query("""
+           select tm.user.id, tm.team.name
+             from TeamMember tm
+            where tm.user.id in :userIds
+            order by tm.team.name asc
+           """)
+    List<Object[]> findTeamNamesForUsers(@Param("userIds") Collection<Long> userIds);
 
     /**
      * Does {@code managerUserId} manage any team that {@code memberUserId} belongs to?

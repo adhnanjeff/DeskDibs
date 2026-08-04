@@ -53,6 +53,7 @@ class BookingServiceLifecycleTest extends AbstractPostgresIntegrationTest {
     private final MutableClock clock;
 
     private final ZoneId office;
+    private final OfficeProperties officeProperties;
 
     private long alice;
     private long bob;
@@ -80,6 +81,7 @@ class BookingServiceLifecycleTest extends AbstractPostgresIntegrationTest {
         this.teamMemberRepository = teamMemberRepository;
         this.clock = clock;
         this.office = office.timezone();
+        this.officeProperties = office;
     }
 
     @BeforeEach
@@ -304,6 +306,28 @@ class BookingServiceLifecycleTest extends AbstractPostgresIntegrationTest {
         // Same booking, same person — only the office clock moved.
         moveClockTo(tomorrow, MORNING);
         assertThat(bookingService.checkIn(forTomorrow.id(), alice).checkedInAt()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("check-in is refused before the office's check-in window opens")
+    void checkInIsClosedOvernight() {
+        BookingView held = bookingService.claim(alice, seatOne, TODAY, null);
+        moveClockTo(TODAY, officeProperties.checkInOpensTime().minusMinutes(1));
+
+        assertThatThrownBy(() -> bookingService.checkIn(held.id(), alice))
+                .as("00:05 from home would otherwise clear the 11:00 release without anybody arriving")
+                .isInstanceOf(CheckInNotOpenYetException.class);
+
+        assertThat(bookingRepository.findById(held.id()).orElseThrow().getCheckedInAt()).isNull();
+    }
+
+    @Test
+    @DisplayName("check-in works the moment the window opens")
+    void checkInOpensOnTheHour() {
+        BookingView held = bookingService.claim(alice, seatOne, TODAY, null);
+        moveClockTo(TODAY, officeProperties.checkInOpensTime());
+
+        assertThat(bookingService.checkIn(held.id(), alice).checkedInAt()).isNotNull();
     }
 
     @Test
