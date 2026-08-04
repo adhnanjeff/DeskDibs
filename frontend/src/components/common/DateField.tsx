@@ -86,15 +86,26 @@ export function DateField({ label, value, min, onChange }: DateFieldProps) {
   const gridRef = useRef<HTMLDivElement>(null);
   const panelId = useId();
 
-  const shown = partsOf(cursor) ?? partsOf(value) ?? { year: 2000, month: 1, day: 1 };
-  const [view, setView] = useState({ year: shown.year, month: shown.month });
+  // Which month to open on. The chosen date when there is one; otherwise the month the browser is
+  // in, which is a scrolling position rather than a decision — the value only ever changes when
+  // somebody presses a day, so no business date is ever taken from the client clock here.
+  const initialView = partsOf(value) ?? {
+    year: new Date().getFullYear(),
+    month: new Date().getMonth() + 1,
+  };
+  const [view, setView] = useState({ year: initialView.year, month: initialView.month });
 
-  // Opening always lands on the chosen day, whatever month was left on screen last time.
+  // Opening always lands on the chosen day, whatever month was left on screen last time. With no
+  // date yet it lands on this month, so the first thing on screen is days somebody might pick.
   const openPanel = useCallback(() => {
     const parts = partsOf(value);
     if (parts) {
       setCursor(value);
       setView({ year: parts.year, month: parts.month });
+    } else {
+      const now = new Date();
+      setCursor('');
+      setView({ year: now.getFullYear(), month: now.getMonth() + 1 });
     }
     setOpen(true);
   }, [value]);

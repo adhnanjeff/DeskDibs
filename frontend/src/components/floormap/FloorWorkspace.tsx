@@ -13,6 +13,7 @@ import { SeatListFallback } from './SeatListFallback';
 import { Floor3DOverlay } from '../floor3d/Floor3DOverlay';
 import { preloadFloor3D } from '../floor3d/lazyScene';
 import { OfficeOverview } from './OfficeOverview';
+import { TodayCheckIn } from './TodayCheckIn';
 import { FindColleague } from './FindColleague';
 import { summariseOffice } from '../../lib/officeStats';
 import { indexColleagues, type Colleague } from '../../lib/colleagueSearch';
@@ -214,6 +215,9 @@ export function FloorWorkspace({
         </div>
         <FloorLegend />
       </div>
+
+      {/* Above the numbers, because it is the one thing on this page with a deadline. */}
+      <TodayCheckIn officeToday={date} />
 
       <OfficeOverview stats={stats} />
 

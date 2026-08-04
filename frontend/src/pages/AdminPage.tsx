@@ -11,9 +11,11 @@ import {
   faUserCheck,
   faUserSlash,
   faUsers,
+  faFileLines,
   faWrench,
   type IconDefinition,
 } from '@fortawesome/free-solid-svg-icons';
+import { OccupancyReport } from '../components/admin/OccupancyReport';
 import { useAuth } from '../auth/AuthContext';
 import { useSeatMap } from '../hooks/useSeatMap';
 import {
@@ -35,7 +37,7 @@ interface AdminSeat {
   bookable: boolean;
 }
 
-type Tab = 'people' | 'desks';
+type Tab = 'people' | 'desks' | 'reports';
 
 /** Every seat on the floor, flattened out of the map the rest of the app already caches. */
 function flattenSeats(map: SeatMapResponse | undefined): AdminSeat[] {
@@ -233,9 +235,16 @@ function AdminWorkspace() {
         <TabButton id="desks" active={tab} onSelect={setTab} icon={faChair}>
           Desks
         </TabButton>
+        <TabButton id="reports" active={tab} onSelect={setTab} icon={faFileLines}>
+          Reports
+        </TabButton>
       </div>
 
-      {tab === 'people' ? (
+      {tab === 'reports' ? (
+        <section id="panel-reports" role="tabpanel" aria-labelledby="tab-reports">
+          <OccupancyReport />
+        </section>
+      ) : tab === 'people' ? (
         <section id="panel-people" role="tabpanel" aria-labelledby="tab-people">
           <p className="mb-3 text-sm text-ink-soft">
             Deactivating an account refuses it at login and returns every desk it is still holding.

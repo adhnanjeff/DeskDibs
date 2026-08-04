@@ -5,14 +5,17 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.LocalDate;
 import java.util.List;
 
 /**
@@ -33,12 +36,30 @@ public class AdminController {
 
     private final UserAdminService userAdmin;
     private final SeatAdminService seatAdmin;
+    private final OccupancyReportService occupancyReports;
     private final CurrentUser currentUser;
 
-    public AdminController(UserAdminService userAdmin, SeatAdminService seatAdmin, CurrentUser currentUser) {
+    public AdminController(UserAdminService userAdmin,
+                           SeatAdminService seatAdmin,
+                           OccupancyReportService occupancyReports,
+                           CurrentUser currentUser) {
         this.userAdmin = userAdmin;
         this.seatAdmin = seatAdmin;
+        this.occupancyReports = occupancyReports;
         this.currentUser = currentUser;
+    }
+
+    @GetMapping("/reports/occupancy")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Who sat where on one day",
+            description = "Every booking made for the date, including ones that were cancelled or taken "
+                    + "back by the no-show release \u2014 the seat map only shows live bookings for today, so it "
+                    + "cannot answer what actually happened on a past date. Rows are in seat order.")
+    @ApiResponse(responseCode = "200", description = "The day's record.")
+    @ApiResponse(responseCode = "403", description = "The caller is not an administrator.")
+    public DayOccupancyReport occupancyReport(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        return occupancyReports.forDate(date);
     }
 
     @GetMapping("/users")

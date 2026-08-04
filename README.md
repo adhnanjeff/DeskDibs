@@ -22,6 +22,10 @@ race at the constraint; the loser gets a clean `409` naming who won. The headlin
 **150 simultaneous claims at one seat and asserts exactly one winner, 149 clean 409s, and zero
 500s** — see `ConcurrentSeatClaimTest`.
 
+> **New here, or explaining the app to somebody?** Read
+> [**How DeskDibs works**](docs/how-deskdibs-works.md) — every rule, role, deadline and edge case
+> in plain English, no code. This README is the developer's entry point; that one is the manual.
+
 ---
 
 ## Contents

@@ -74,8 +74,10 @@ function DayButton({
   // Whether the office is open — decided by the server, which also refuses a claim on a closed
   // day. This only stops the click; it is not what enforces the rule.
   const open = day.bookable ?? true;
-  // Told by the server, not inferred from position in the row: past the same-day cut-off the
-  // strip opens on tomorrow, so the first tile is very often not today at all.
+  // Today past the same-day cut-off. Bookable, and worth saying so: the desks the no-show release
+  // just handed back are exactly what somebody arriving late is looking for.
+  const underway = day.note === 'DAY_UNDERWAY';
+  // Told by the server, not inferred from position in the row.
   const isToday = day.today ?? false;
 
   const date = new Date(`${iso}T00:00:00`);
@@ -90,11 +92,15 @@ function DayButton({
     month: 'long',
   });
   // Holds are named rather than folded silently into the total, so a day that looks busier than
-  // the booking count explains has an answer on the tile itself.
+  // the booking count explains has an answer on the tile itself. And a shut day says *why* it is
+  // shut: "closed" on a Tuesday afternoon reads as a mistake in the app.
+  const occupancy = `${free} of ${bookableSeats} desks free${
+    held > 0 ? ` (${held} held for teams)` : ''
+  }${yours ? `. You have ${yours}.` : ''}`;
   const label = open
-    ? `${longDate}${isToday ? ' (today)' : ''}: ${free} of ${bookableSeats} desks free${
-        held > 0 ? ` (${held} held for teams)` : ''
-      }${yours ? `. You have ${yours}.` : ''}`
+    ? `${longDate}${isToday ? ' (today)' : ''}: ${occupancy}${
+        underway ? ' The day is under way; desks freed by the no-show release are bookable.' : ''
+      }`
     : `${longDate}: the office is closed`;
 
   return (

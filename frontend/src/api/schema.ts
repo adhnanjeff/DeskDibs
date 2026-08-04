@@ -260,6 +260,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/reports/occupancy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Who sat where on one day
+         * @description Every booking made for the date, including ones that were cancelled or taken back by the no-show release — the seat map only shows live bookings for today, so it cannot answer what actually happened on a past date. Rows are in seat order.
+         */
+        get: operations["occupancyReport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/reservations/{id}": {
         parameters: {
             query?: never;
@@ -541,6 +561,8 @@ export interface components {
             yourSeatLabel?: string | null;
             /** @example true */
             bookable?: boolean;
+            /** @enum {string|null} */
+            note?: "OFFICE_CLOSED" | "DAY_UNDERWAY" | null;
             /** @example false */
             today?: boolean;
         };
@@ -580,6 +602,36 @@ export interface components {
             /** @enum {string} */
             role?: "EMPLOYEE" | "MANAGER" | "ADMIN";
             active?: boolean;
+        };
+        DayOccupancyReport: {
+            /** Format: date */
+            date?: string;
+            /** Format: int32 */
+            totalSeats?: number;
+            /** Format: int32 */
+            bookedSeats?: number;
+            /** Format: int32 */
+            attended?: number;
+            /** Format: int32 */
+            noShows?: number;
+            /** Format: int32 */
+            cancelled?: number;
+            rows?: components["schemas"]["Row"][];
+        };
+        Row: {
+            /** @example R3-A2 */
+            seatLabel?: string;
+            /** Format: int64 */
+            userId?: number;
+            /** @example Alice M. */
+            userName?: string;
+            /** @example alice@deskdibs.test */
+            userEmail?: string;
+            team?: string[];
+            /** @enum {string} */
+            status?: "ACTIVE" | "CANCELLED" | "RELEASED_NO_SHOW" | "RELEASED_USER_DEACTIVATED" | "RELEASED_SEAT_REMOVED";
+            /** Format: date-time */
+            checkedInAt?: string | null;
         };
     };
     responses: never;
@@ -1035,6 +1087,37 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["AdminUserView"][];
+                };
+            };
+        };
+    };
+    occupancyReport: {
+        parameters: {
+            query: {
+                date: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The day's record. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["DayOccupancyReport"];
+                };
+            };
+            /** @description The caller is not an administrator. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["DayOccupancyReport"];
                 };
             };
         };

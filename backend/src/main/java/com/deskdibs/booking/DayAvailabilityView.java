@@ -21,9 +21,14 @@ import java.time.LocalDate;
  * @param heldSeats     desks under a team hold that is still enforced on this date, counting only
  *                      ones no booking already covers, so the two numbers never double-count a desk
  * @param yourSeatLabel the desk you already hold that day, or {@code null} if you hold none
- * @param bookable      whether the office is open that day. The strip shows closed days rather than
- *                      hiding them — a fortnight with gaps in it is harder to read than one where
- *                      every day is present and the shut ones say so.
+ * @param bookable      whether a desk can be claimed for that day. False only for a day the office is
+ *                      shut. The strip shows those days rather than hiding them — a fortnight with
+ *                      gaps in it is harder to read than one where every day is present and the shut
+ *                      ones say so.
+ * @param note          the one thing about this day that is not obvious from the numbers, or
+ *                      {@code null}. {@code DAY_UNDERWAY} in particular does <em>not</em> mean shut:
+ *                      today stays bookable past the cut-off precisely so the desks the no-show
+ *                      release just handed back can be taken by whoever walks in late.
  * @param today         whether this entry is the office's own today. Sent rather than inferred from
  *                      the entry's position: past the same-day cut-off the horizon opens on
  *                      tomorrow, so "first in the list" and "today" stop being the same thing, and
@@ -36,7 +41,20 @@ public record DayAvailabilityView(
         @Schema(example = "9") int heldSeats,
         @Schema(example = "R5-A1", nullable = true) String yourSeatLabel,
         @Schema(example = "true") boolean bookable,
+        @Schema(nullable = true) DayNote note,
         @Schema(example = "false") boolean today) {
+
+    /** Named rather than described, so the client picks the wording. */
+    public enum DayNote {
+        /** Not one of the office's working days. Pairs with {@code bookable = false}. */
+        OFFICE_CLOSED,
+        /**
+         * Today, past the same-day cut-off: the working day is well under way and the no-show
+         * release has already run. Still bookable — those released desks are for exactly the
+         * person reading this.
+         */
+        DAY_UNDERWAY
+    }
 
     /** Desks anyone could still claim that day: in service, unbooked, and under no live hold. */
     public int freeSeats() {

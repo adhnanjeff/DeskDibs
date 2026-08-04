@@ -42,6 +42,9 @@ public enum BookingErrorCode {
     /** Check-in attempted for a booking that is not for today. */
     CHECK_IN_NOT_FOR_TODAY,
 
+    /** Check-in attempted before the office's check-in window opens. */
+    CHECK_IN_NOT_OPEN_YET,
+
     /** Already checked in. */
     ALREADY_CHECKED_IN,
 

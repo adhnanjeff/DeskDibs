@@ -646,6 +646,49 @@
                 }
             }
         },
+        "/api/admin/reports/occupancy": {
+            "get": {
+                "tags": [
+                    "Administration"
+                ],
+                "summary": "Who sat where on one day",
+                "description": "Every booking made for the date, including ones that were cancelled or taken back by the no-show release \u2014 the seat map only shows live bookings for today, so it cannot answer what actually happened on a past date. Rows are in seat order.",
+                "operationId": "occupancyReport",
+                "parameters": [
+                    {
+                        "name": "date",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The day's record.",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/DayOccupancyReport"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "The caller is not an administrator.",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/DayOccupancyReport"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/reservations/{id}": {
             "delete": {
                 "tags": [
@@ -1300,6 +1343,16 @@
                         "type": "boolean",
                         "example": true
                     },
+                    "note": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "enum": [
+                            "OFFICE_CLOSED",
+                            "DAY_UNDERWAY"
+                        ]
+                    },
                     "today": {
                         "type": "boolean",
                         "example": false
@@ -1387,6 +1440,85 @@
                     },
                     "active": {
                         "type": "boolean"
+                    }
+                }
+            },
+            "DayOccupancyReport": {
+                "type": "object",
+                "properties": {
+                    "date": {
+                        "type": "string",
+                        "format": "date"
+                    },
+                    "totalSeats": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "bookedSeats": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "attended": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "noShows": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "cancelled": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "rows": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/Row"
+                        }
+                    }
+                }
+            },
+            "Row": {
+                "type": "object",
+                "properties": {
+                    "seatLabel": {
+                        "type": "string",
+                        "example": "R3-A2"
+                    },
+                    "userId": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "userName": {
+                        "type": "string",
+                        "example": "Alice M."
+                    },
+                    "userEmail": {
+                        "type": "string",
+                        "example": "alice@deskdibs.test"
+                    },
+                    "team": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": [
+                            "ACTIVE",
+                            "CANCELLED",
+                            "RELEASED_NO_SHOW",
+                            "RELEASED_USER_DEACTIVATED",
+                            "RELEASED_SEAT_REMOVED"
+                        ]
+                    },
+                    "checkedInAt": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
                     }
                 }
             }

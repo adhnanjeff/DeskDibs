@@ -70,13 +70,13 @@ public class SeatMapService {
     }
 
     /**
-     * The date strip's window: every day still worth offering, with the caller's own desks marked.
+     * The date strip's window: every day in the horizon, with the caller's own desks marked.
      *
-     * <p>Starts at today until the office passes {@code sameDayCutoffTime}, and at tomorrow after
-     * it. Past that hour the working day is underway and the no-show release has already handed
-     * back the desks nobody claimed, so a strip still leading with "Today" offers a day that has
-     * largely gone. The far end does not move with it — passing the cut-off does not earn anyone
-     * an extra day at the end of the horizon.
+     * <p>Always starts at today, including after the same-day cut-off. It used to skip to tomorrow
+     * then, which removed the day somebody is most likely to be asking about — you cannot see how
+     * full the office is right now, or that you already hold a desk in it, on a day the strip has
+     * deleted. Today is present and marked unbookable instead, which is the honest version of the
+     * same rule; {@code BookingService} is what actually refuses the claim.
      *
      * <p>The rule lives here rather than in the controller because it is a rule about when the
      * office considers a day bookable, and because "what is today" is only ever answered by
@@ -85,10 +85,7 @@ public class SeatMapService {
     @Transactional(readOnly = true)
     public List<DayAvailabilityView> bookableHorizon(long userId) {
         LocalDate today = officeClock.today();
-        LocalDate first = officeClock.isBefore(today, office.sameDayCutoffTime())
-                ? today
-                : today.plusDays(1);
-        return availabilityHorizon(userId, first, today.plusDays(office.bookingHorizonDays()));
+        return availabilityHorizon(userId, today, today.plusDays(office.bookingHorizonDays()));
     }
 
     /**
@@ -117,15 +114,26 @@ public class SeatMapService {
         Map<LocalDate, Integer> heldByDate = enforcedHoldsByDate(from, to);
 
         LocalDate today = officeClock.today();
+        boolean pastCutoff = !officeClock.isBefore(today, office.sameDayCutoffTime());
+
         List<DayAvailabilityView> horizon = new ArrayList<>();
         for (LocalDate day = from; !day.isAfter(to); day = day.plusDays(1)) {
+            boolean open = office.isWorkingDay(day);
+            DayAvailabilityView.DayNote note = null;
+            if (!open) {
+                note = DayAvailabilityView.DayNote.OFFICE_CLOSED;
+            } else if (day.equals(today) && pastCutoff) {
+                note = DayAvailabilityView.DayNote.DAY_UNDERWAY;
+            }
+
             horizon.add(new DayAvailabilityView(
                     day,
                     bookableSeats,
                     bookedByDate.getOrDefault(day, 0L).intValue(),
                     heldByDate.getOrDefault(day, 0),
                     mySeatByDate.get(day),
-                    office.isWorkingDay(day),
+                    open,
+                    note,
                     day.equals(today)));
         }
         return horizon;

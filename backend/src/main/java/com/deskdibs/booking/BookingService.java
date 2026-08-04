@@ -222,6 +222,11 @@ public class BookingService {
         if (!booking.getBookingDate().equals(today)) {
             throw new CheckInNotForTodayException(bookingId, booking.getBookingDate(), today);
         }
+        // Check-in says "I am here", so it opens when people are actually arriving. Left open from
+        // midnight it proves nothing: 00:05 from home would clear the 11:00 release just as well.
+        if (officeClock.isBefore(today, office.checkInOpensTime())) {
+            throw new CheckInNotOpenYetException(bookingId, office.checkInOpensTime(), officeClock.timeOfDay());
+        }
         if (booking.getCheckedInAt() != null) {
             throw new AlreadyCheckedInException(bookingId, booking.getCheckedInAt());
         }
@@ -247,16 +252,22 @@ public class BookingService {
 
     /** Rule 1: within {@code [today, today + horizon]}, with "today" read from the office clock. */
     private void requireDateWithinWindow(LocalDate date) {
-        LocalDate earliest = officeClock.today();
-        LocalDate latest = earliest.plusDays(office.bookingHorizonDays());
-        if (date.isBefore(earliest) || date.isAfter(latest)) {
-            throw new DateOutsideBookingWindowException(date, earliest, latest);
+        LocalDate today = officeClock.today();
+        LocalDate latest = today.plusDays(office.bookingHorizonDays());
+        if (date.isBefore(today) || date.isAfter(latest)) {
+            throw new DateOutsideBookingWindowException(date, today, latest);
         }
         // A day nobody is in the office is not a day a desk can be held. Checked server-side
         // because the date strip only *offers* working days — it cannot enforce them.
         if (!office.isWorkingDay(date)) {
             throw new DateNotAWorkingDayException(date);
         }
+        // Deliberately NO same-day cut-off here. Closing today past `sameDayCutoffTime` looks
+        // reasonable until you notice it fires at the same hour as the no-show release: the release
+        // would hand back every desk nobody turned up for into a day on which nobody could claim
+        // them. Late arrivals taking freed desks is the entire point of that job — see
+        // NoShowReleaseServiceTest, where Carol walks in at 11:30 and takes one. The cut-off marks
+        // today as underway in the strip; it does not shut it.
     }
 
     /** Rule 2: the seat itself has to be in the pool. */
